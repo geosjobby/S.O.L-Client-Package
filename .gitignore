@@ -1,0 +1,6 @@
+\.idea
+\PyVenv
+desktop.ini
+\.run
+*\__pychache__
+*.pyc
