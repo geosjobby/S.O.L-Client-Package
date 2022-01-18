@@ -4,3 +4,5 @@ desktop.ini
 \.run
 *\__pychache__
 *.pyc
+/SOL_Client_Connector/dist/
+/SOL_Client_Connector/src/SOL_Client_Connector_Package.egg-info/
