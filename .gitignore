@@ -11,3 +11,4 @@ desktop.ini
 /setup.py
 /pyproject.toml
 /src/SOL_Client_Connector_Package.egg-info/
+/tests/
