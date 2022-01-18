@@ -1,5 +1,5 @@
 \.idea
-\PyVenv
+\PyVenv\
 desktop.ini
 \.run
 *\__pychache__
