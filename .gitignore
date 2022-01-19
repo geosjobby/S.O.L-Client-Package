@@ -12,3 +12,4 @@ desktop.ini
 /pyproject.toml
 /src/SOL_Client_Connector_Package.egg-info/
 /tests/
+/src/SOL_Client_SOL_Connector_Package.egg-info/
