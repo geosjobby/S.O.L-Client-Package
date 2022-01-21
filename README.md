@@ -17,7 +17,7 @@ The code below is an example of how the connection and package classes might be 
 from SOL_Client_Connector import (
 	SOL_Connector,	# Connector class
 	SOL_Package, 	# Package class to assemble the commands in
-	SOL_Error		# Error Exception object
+	SOL_Error	# Error Exception object
 )
 
 # *-*
@@ -27,7 +27,7 @@ from SOL_Client_Connector import (
 Connection = SOL_Connector()  
 Connection.connection_setup(  
 	address=...,	# String Input  
-	port=...  		# Integer Input
+	port=...  	# Integer Input
 )
 
 # *-*
@@ -47,7 +47,7 @@ package = SOL_Package(
 package.command_add(
 	{"ping": None},		# Example
 	{"ping": None},		# Chain multiple commands after each other 
-) 						# to insert multiple commands.
+) 			        # to insert multiple commands.
 
 # *-*
 # Send the Package and wait for the result
