@@ -9,7 +9,7 @@ import asyncio
 
 # Custom Structure
 from ._Base_Classes import SOL_Connector_Base, SOL_Error
-from .SOL_Connector_Ciphers import SOL_Connector_Ciphers
+from ._SOL_Connector_Ciphers import SOL_Connector_Ciphers
 
 # ----------------------------------------------------------------------------------------------------------------------
 # - Code -
