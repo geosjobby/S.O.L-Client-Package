@@ -3,6 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # General Packages
 import socket
+from Crypto.PublicKey.RSA import RsaKey
 
 # Custom Packages
 
@@ -82,11 +83,26 @@ class SOL_Connector_Base:
     def __init__(self):
         self.ciphers = SOL_Connector_Ciphers_Base()
 
-    def connection_setup(self, address: str, port: int) -> bool:
-        """Insert address abd port to connect to the API"""
+    def connection_setup(self, address: str, port: int):
+        """Insert address and port to connect to the API"""
+
+    async def send(self, package: SOL_Package_Base) -> list[list]:
+        """Send the actual data to the API by inserting the completed package"""
 
 # ----------------------------------------------------------------------------------------------------------------------
 # - ENCRYPTION -
 # ----------------------------------------------------------------------------------------------------------------------
 class SOL_Connector_Ciphers_Base:
     _c: SOL_Connector_Base
+
+    def pp_import_key(self, public_key_str:bytes) -> RsaKey:
+        """Import an RSA key from string"""
+
+    def pp_generate_keys(self) -> tuple[RsaKey, RsaKey]:
+        """Generates a pair of public and private keys"""
+
+    def pp_encrypt(self, message: bytes, public_key:RsaKey) -> tuple[bytes, bytes, bytes, bytes]:
+        """Encrypts the message with the given public key"""
+
+    def pp_decrypt(self, package_encrypted: bytes, private_key:RsaKey, session_key_encrypted, tag, nonce):
+        """Decrypts the given package with the session key, which in turn is decrypted by the private key"""

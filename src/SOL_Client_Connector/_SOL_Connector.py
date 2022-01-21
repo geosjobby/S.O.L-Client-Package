@@ -5,7 +5,7 @@
 import json
 import hashlib
 import socket
-import asyncio
+import base64
 
 # Custom Structure
 from ._Base_Classes import SOL_Connector_Base, SOL_Error, SOL_Package_Base
@@ -21,12 +21,14 @@ class SOL_Connector(SOL_Connector_Base):
         # Define Sub Classes
         self.ciphers = SOL_Connector_Ciphers(self)
 
-    def connection_setup(self, address:str, port:int) -> bool:
-        self.address = address if isinstance(address, str) else False
-        self.port = port if isinstance(port, int) else False
-        return True if self.port and self.address else False
+    def connection_setup(self, address:str, port:int):
+        if isinstance(address, str) and isinstance(port, int):
+            self.address = address
+            self.port = port
+        else:
+            raise SOL_Error("Address and or port were not in the correct type")
 
-    async def send(self, package:SOL_Package_Base)->list[list]:
+    def send(self, package:SOL_Package_Base)->list[list]:
         # check the package is the correct format
         if not isinstance(package, SOL_Package_Base):
             return [[4101, None]]
@@ -42,24 +44,30 @@ class SOL_Connector(SOL_Connector_Base):
             # ----------------------------------------------------------------------------------------------------------
             # 1. Send request for public key
             self.socket.send("SOL_KEY".encode("utf_8"))
-            match self.socket.recv(1024).decode("utf_8"):
-                case "5555":  # API unavailable at the server level and will not be able to send a reply back
+            match self.socket.recv(1024):
+                case b"5555":  # API unavailable at the server level and will not be able to send a reply back
                     return [[5555, None]]
-                case str(public_key_str):
+                case bytes(public_key_str):
                     public_key = self.ciphers.pp_import_key(public_key_str)
                 case _:
                     raise SOL_Error
 
             # 2. Encrypt the package
-            package_encrypted = b"".join(await self.ciphers.pp_encrypt(package.data(), public_key))
+            encrypted_package,session_key_encrypted,tag,nonce = self.ciphers.pp_encrypt(package.data(), public_key)
+            package_param = b":".join([
+                base64.b64encode(session_key_encrypted),
+                base64.b64encode(tag),
+                base64.b64encode(nonce),
+                base64.b64encode(len(encrypted_package).to_bytes(len(encrypted_package).bit_length(), "big"))
+            ])
 
-            # 3. Send the length package so the server knows what to expect
-            self.socket.send(len(package_encrypted).to_bytes(len(package_encrypted).bit_length(), "big"))
+            # 3. send message parameters
+            self.socket.send(package_param)
 
             # 4. Send the entire package if we get the all clear
             if self.socket.recv(1024).decode("utf_8") != "SOL_CLEAR":
                 raise SOL_Error
-            self.socket.send(package_encrypted)
+            self.socket.send(encrypted_package)
 
             # ----------------------------------------------------------------------------------------------------------
             # grab the reply package
@@ -72,11 +80,12 @@ class SOL_Connector(SOL_Connector_Base):
             self.socket.sendall(public_key.exportKey())
 
             # 2. Receive the encrypted package's length
-            match int.from_bytes(self.socket.recv(1024),"big"):
-                case package_length if package_length > 0:
-                    self.socket.sendall("CLIENT_CLEAR".encode("utf_8"))
-                case _:
-                    raise SOL_Error
+            session_key_encrypted, tag, nonce, package_length = (base64.b64decode(a) for a in self.socket.recv(1024*10).split(b":"))
+            package_length = int.from_bytes(package_length,"big")
+            if package_length <= 0:
+                raise SOL_Error
+
+            self.socket.sendall("CLIENT_CLEAR".encode("utf_8"))
 
             # 3. assemble the actual package data
             q_data_encrypted = b""
@@ -84,7 +93,7 @@ class SOL_Connector(SOL_Connector_Base):
                 q_data_encrypted += self.socket.recv(2048)
 
             # 4. decrypt the package
-            q_data = await self.ciphers.pp_decrypt(q_data_encrypted, private_key)
+            q_data = self.ciphers.pp_decrypt(q_data_encrypted, private_key,session_key_encrypted,tag,nonce)
 
             # form the reply list
             match json.loads(q_data.decode("utf_8")):
