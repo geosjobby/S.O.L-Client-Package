@@ -12,7 +12,7 @@ from .._Base_Classes import SOL_Package_Base, SOL_Error
 # - Code -
 # ----------------------------------------------------------------------------------------------------------------------
 class SOL_Package(SOL_Package_Base):
-    def __init__(self, api_key:str=None, credentials:dict=None):
+    def __init__(self, api_key:str=None, credentials:dict=None, first_api_key_request:bool=False):
         if api_key is None:
             self._api_key = None
         else:
@@ -22,6 +22,12 @@ class SOL_Package(SOL_Package_Base):
             self._credentials = None
         else:
             self.credentials = credentials
+
+        # when not defined on init, it will be false, so no check is needed here
+        self.first_api_key_request = first_api_key_request
+
+        self._commands = []
+
 
     # ------------------------------------------------------------------------------------------------------------------
     # - Properties and Checks of to be inserted Data -
@@ -49,10 +55,46 @@ class SOL_Package(SOL_Package_Base):
             case _:
                 raise SOL_Error("Credentials were incorrectly defined")
 
+    # Request for the User's first API key
+    @property
+    def first_api_key_request(self):
+        return self._first_api_key_request
+    @first_api_key_request.setter
+    def first_api_key_request(self, value):
+       if not isinstance(value, bool):
+           raise SOL_Error("Request for a first API Key can only be a boolean value")
+       if self.credentials is None and value:
+           raise SOL_Error("Credentials have to be given for a first API key Request")
+
+       self._first_api_key_request = value
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # - Command List Formation -
+    # ------------------------------------------------------------------------------------------------------------------
+    @property
+    def commands(self):
+        return self._commands
+
+    def command_add(self,*args):
+        if all((len(c) == 1 and isinstance(c, dict)) for c in args):
+            self._commands = self.commands + list(args)
+        else:
+            raise SOL_Error("Unable to insert the command(s)")
+
+    def commands_clear(self):
+        self._commands = []
+
     # ------------------------------------------------------------------------------------------------------------------
     # - Package Formations -
     # ------------------------------------------------------------------------------------------------------------------
-    def package_api_key_request(self) -> bytes:
+    def data(self) -> bytes:
+        # If there are more edge cases for special packages, they should be checked here
+        if self.first_api_key_request:
+            return self._package_api_key_request()
+        else:
+            return self._package()
+
+    def _package_api_key_request(self) -> bytes:
         # Check if we can form package
         if self.credentials is None:
             raise SOL_Error("Credentials weren't setup")
@@ -62,19 +104,20 @@ class SOL_Package(SOL_Package_Base):
             "credentials": self.credentials
         }).encode("utf_8")
 
-    def package(self,command_list:list) -> bytes:
+    def _package(self) -> bytes:
         # Check if we can form package
         if self.api_key is None:
             raise SOL_Error("No API Key was setup")
-        if not isinstance(command_list, list) and all(isinstance(i, dict) for i in command_list):
-            raise SOL_Error("The Command List was incorrectly formatted")
+
+        if len(self.commands) == 0:
+            raise SOL_Error("No commands were set up")
 
         # Form the package
         return json.dumps({
             "api_key": self.api_key,
             "hash": {
-                "q": hashlib.sha256(json.dumps(command_list).encode("utf_8")).hexdigest(),
+                "q": hashlib.sha256(json.dumps(self.commands).encode("utf_8")).hexdigest(),
                 "api_key": hashlib.sha256(self.api_key.encode("utf_8")).hexdigest()
             },
-            "q": command_list
+            "q": self.commands
         }).encode("utf_8")

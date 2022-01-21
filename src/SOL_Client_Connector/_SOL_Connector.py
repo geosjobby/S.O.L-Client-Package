@@ -8,7 +8,7 @@ import socket
 import asyncio
 
 # Custom Structure
-from ._Base_Classes import SOL_Connector_Base, SOL_Error
+from ._Base_Classes import SOL_Connector_Base, SOL_Error, SOL_Package_Base
 from ._SOL_Connector_Ciphers import SOL_Connector_Ciphers
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -26,16 +26,10 @@ class SOL_Connector(SOL_Connector_Base):
         self.port = port if isinstance(port, int) else False
         return True if self.port and self.address else False
 
-    async def send(self, api_key:str=None, q_list:list[dict]=None, credentials:dict=None)->list[list]:
-        # check the api_key and q_list for the correct format
-        if api_key is None:
-            api_key = ""
-        elif not isinstance(api_key, str):
+    async def send(self, package:SOL_Package_Base)->list[list]:
+        # check the package is the correct format
+        if not isinstance(package, SOL_Package_Base):
             return [[4101, None]]
-        if q_list is not None and not isinstance(q_list, list) and all(isinstance(i, dict) for i in q_list):
-            return [[4102, None]]
-        if credentials is not None and not isinstance(credentials, dict):
-            return [[4103,None]]
 
         # Connect to API server and send data
         try:
@@ -46,44 +40,26 @@ class SOL_Connector(SOL_Connector_Base):
             # ----------------------------------------------------------------------------------------------------------
             # send package so the server
             # ----------------------------------------------------------------------------------------------------------
-            # assemble the package as a json string in bytes
-            if credentials is not None:
-                package = json.dumps({
-                    "credentials": credentials
-                }).encode("utf_8")
-            else:
-                package = json.dumps({
-                    "api_key": api_key,
-                    "hash": {
-                        "q": hashlib.sha256(json.dumps(q_list).encode("utf_8")).hexdigest(),
-                        "api_key": hashlib.sha256(api_key.encode("utf_8")).hexdigest()
-                    },
-                    "q": q_list
-                }).encode("utf_8")
-
             # 1. Send request for public key
             self.socket.send("SOL_KEY".encode("utf_8"))
             match self.socket.recv(1024).decode("utf_8"):
-                case "5555;None":  # API unavailable at the server level and will not be able to send a reply back
+                case "5555":  # API unavailable at the server level and will not be able to send a reply back
                     return [[5555, None]]
-                case str(a):
-                    public_key_str = a
+                case str(public_key_str):
+                    public_key = self.ciphers.pp_import_key(public_key_str)
                 case _:
                     raise SOL_Error
 
             # 2. Encrypt the package
-            public_key = self.ciphers.pp_import_key(public_key_str)
-            package_encrypted = b"".join(await self.ciphers.pp_encrypt(package, public_key))
+            package_encrypted = b"".join(await self.ciphers.pp_encrypt(package.data(), public_key))
 
             # 3. Send the length package so the server knows what to expect
             self.socket.send(len(package_encrypted).to_bytes(len(package_encrypted).bit_length(), "big"))
 
             # 4. Send the entire package if we get the all clear
-            if  self.socket.recv(1024).decode("utf_8") != "SOL_CLEAR":
+            if self.socket.recv(1024).decode("utf_8") != "SOL_CLEAR":
                 raise SOL_Error
             self.socket.send(package_encrypted)
-
-            del public_key
 
             # ----------------------------------------------------------------------------------------------------------
             # grab the reply package

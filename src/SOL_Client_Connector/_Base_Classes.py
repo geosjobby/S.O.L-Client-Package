@@ -13,7 +13,8 @@ class SOL_Package_Base:
     api_key_length = 128
     _api_key:str
     _credentials:dict
-    _q_list:list #todo ?
+    _commands:list
+    _first_api_key_request:bool
 
     # ------------------------------------------------------------------------------------------------------------------
     # - Properties and Checks of to be inserted Data -
@@ -32,14 +33,38 @@ class SOL_Package_Base:
     @credentials.setter
     def credentials(self, value):
         """Some checks for the correct insertion of the credentials"""
+    # Request for the User's first API key
+    @property
+    def first_api_key_request(self):
+        return self._first_api_key_request
+    @first_api_key_request.setter
+    def first_api_key_request(self, value):
+        """Enable or disable request for the User's first API key"""
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # - Command List Formation -
+    # ------------------------------------------------------------------------------------------------------------------
+    @property
+    def commands(self):
+        return self._commands
+
+    def command_add(self,*args):
+        """Adds one or more commands to the command list"""
+
+    def commands_clear(self):
+        """Clears the entire command list"""
 
     # ------------------------------------------------------------------------------------------------------------------
     # - Package Formations -
     # ------------------------------------------------------------------------------------------------------------------
-    def package_api_key_request(self) -> bytes:
+
+    def data(self)-> bytes:
+        """Method to generate the correct data"""
+
+    def _package_api_key_request(self) -> bytes:
         """Forms the Correct package to retrieve the user's first API Key in the format of a json dump to string"""
 
-    def package(self,command_list:list) -> bytes:
+    def _package(self) -> bytes:
         """Forms the Correct package structure to execute the commands by the API"""
 
 # ----------------------------------------------------------------------------------------------------------------------
