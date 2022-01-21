@@ -113,11 +113,16 @@ class SOL_Package(SOL_Package_Base):
             raise SOL_Error("No commands were set up")
 
         # Form the package
-        return json.dumps({
-            "api_key": self.api_key,
-            "hash": {
-                "q": hashlib.sha256(json.dumps(self.commands).encode("utf_8")).hexdigest(),
-                "api_key": hashlib.sha256(self.api_key.encode("utf_8")).hexdigest()
-            },
-            "q": self.commands
-        }).encode("utf_8")
+        try:
+            return json.dumps({
+                "api_key": self.api_key,
+                "hash": {
+                    "q": hashlib.sha256(json.dumps(self.commands).encode("utf_8")).hexdigest(),
+                    "api_key": hashlib.sha256(self.api_key.encode("utf_8")).hexdigest()
+                },
+                "q": self.commands
+            }).encode("utf_8")
+
+        except (json.JSONDecodeError,TypeError):
+            raise SOL_Error("Package could not be dumped to string with the following error:")
+
