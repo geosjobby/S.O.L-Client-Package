@@ -98,5 +98,7 @@ class SOL_Connector(SOL_Connector_Base):
             return json.loads(q_data.decode("utf_8"))["r"]
 
         # if anything goes wrong, it should be excepted so the entire program doesn't crash
-        except SOL_Error or json.JSONDecodeError or socket.timeout:
-            return [[4104, None]]
+        except (SOL_Error, socket.timeout):
+            return [[4104, "SOL_Error"]]
+        except json.JSONDecodeError as e:
+            return [[4102, f"JSONDecodeError: {e}"]]
