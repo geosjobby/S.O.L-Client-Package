@@ -3,7 +3,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # General Packages
 import json
-import hashlib
 
 # Custom Packages
 from .._Base_Classes import SOL_Package_Base, SOL_Error
@@ -116,10 +115,6 @@ class SOL_Package(SOL_Package_Base):
         try:
             return json.dumps({
                 "api_key": self.api_key,
-                "hash": {
-                    "q": hashlib.sha256(json.dumps(self.commands).encode("utf_8")).hexdigest(),
-                    "api_key": hashlib.sha256(self.api_key.encode("utf_8")).hexdigest()
-                },
                 "q": self.commands
             }).encode("utf_8")
 

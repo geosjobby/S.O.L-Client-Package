@@ -3,7 +3,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # General Structure
 import json
-import hashlib
 import socket
 import base64
 
@@ -60,7 +59,6 @@ class SOL_Connector(SOL_Connector_Base):
                 base64.b64encode(nonce),
                 base64.b64encode(len(encrypted_package).to_bytes(len(encrypted_package).bit_length(), "big"))
             ])
-
             # 3. send message parameters
             self.socket.send(package_param)
 
@@ -80,7 +78,7 @@ class SOL_Connector(SOL_Connector_Base):
             self.socket.sendall(public_key.exportKey())
 
             # 2. Receive the encrypted package's length
-            session_key_encrypted, tag, nonce, package_length = (base64.b64decode(a) for a in self.socket.recv(1024*10).split(b":"))
+            session_key_encrypted, tag, nonce, package_length = (base64.b64decode(a) for a in self.socket.recv(1024).split(b":"))
             package_length = int.from_bytes(package_length,"big")
             if package_length <= 0:
                 raise SOL_Error
@@ -91,19 +89,13 @@ class SOL_Connector(SOL_Connector_Base):
             q_data_encrypted = b""
             while len(q_data_encrypted) < package_length:
                 q_data_encrypted += self.socket.recv(2048)
+                #todo Pyside Signal for download progress
 
             # 4. decrypt the package
             q_data = self.ciphers.pp_decrypt(q_data_encrypted, private_key,session_key_encrypted,tag,nonce)
 
             # form the reply list
-            match json.loads(q_data.decode("utf_8")):
-                case {"hash": {"r": rh}, "r": r} \
-                    if isinstance(rh, str) \
-                    and isinstance(r, list) \
-                    and hashlib.sha256(json.dumps(r).encode("utf_8")).hexdigest() == rh:
-                        return r
-                case _:
-                    raise SOL_Error
+            return json.loads(q_data.decode("utf_8"))["r"]
 
         # if anything goes wrong, it should be excepted so the entire program doesn't crash
         except SOL_Error or json.JSONDecodeError or socket.timeout:
