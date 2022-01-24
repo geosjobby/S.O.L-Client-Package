@@ -1,13 +1,15 @@
-# - S.O.L Client Connector Package - v0.1.4
+# - S.O.L Client Connector Package - v0.1.5
 
 This is the standardized connector between any client application and the SOL API.
-The primary reason this package was assembled is that there are various client applications which all need the SOL API to work properly and have to connect to it in a similar way or their connection will be refused by the API.
+The primary reason this package was assembled is that there are various client applications which all need the SOL API to work properly.
+They all have to connect to it in a similar way or their connection will be refused by the API.
 
 ---
 ## Details and features
 - End-to-end encryption with the API Server
 - Base error handling, but does not do anything with the API return codes.
 The client application is meant to handle the different error codes on a use case basis.
+- File transmission
 
 
 ---
@@ -17,7 +19,8 @@ The code below is an example of how the connection and package classes might be 
 from SOL_Client_Connector import (
 	SOL_Connector,	# Connector class
 	SOL_Package, 	# Package class to assemble the commands in
-	SOL_Error	# Error Exception object
+	SOL_Error,	# Error Exception object
+        SOL_File        # File Object which only reads the file on send of the whole package 
 )
 
 # *-*
@@ -45,10 +48,11 @@ try:
 # *-*
 # Populate the Package Object
 # *-*
-    package.command_add(
-        {"ping": None},		# Example
-        {"ping": None},		# Chain multiple commands after each other 
-    ) 			        # to insert multiple commands.
+    package.command_add(                    # Example commands, NOT USABLE COMMANDS
+        {"ping": None},		            # Allowed chaining of multiple commands after each other.
+        {"file": SOL_File(filepath="...")}, # Custom SOl_File object to correctly insert files into a command.
+                                            # This file will only be read and decoded to transmittable bytes
+                                            #   on the actual sending of the package.
 
 # *-*
 # Send the Package and wait for the result
@@ -72,7 +76,7 @@ Project files can be found at:
 - [GitHub Repo](https://github.com/DirectiveAthena/S.O.L-Client-Package) 
 - [Pypi link](https://pypi.org/project/SOL-Client-Connector-Package/)
 
-Pip install by: 
+Pip installs by the following command: 
 ```
 pip install SOL-Client-Connector-Package
 ``` 
