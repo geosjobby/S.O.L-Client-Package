@@ -38,7 +38,7 @@ class SOL_Connector_Ciphers(SOL_Connector_Ciphers_Base):
 
         return encrypted_package,session_key_encrypted,tag, cipher_aes.nonce
 
-    def pp_decrypt(self, package_encrypted: bytes, private_key, session_key_encrypted, tag, nonce):
+    def pp_decrypt(self, package_encrypted: bytes, private_key:RsaKey, session_key_encrypted:bytes, tag:bytes, nonce:bytes):
         # Set decryptor and variables
         decryptor = PKCS1_OAEP.new(private_key)
         session_key = decryptor.decrypt(session_key_encrypted)

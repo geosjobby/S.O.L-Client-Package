@@ -15,11 +15,15 @@ from ._SOL_Connector_Ciphers import SOL_Connector_Ciphers
 # ----------------------------------------------------------------------------------------------------------------------
 # https://stackoverflow.com/questions/3768895/how-to-make-a-class-json-serializable#:~:text=Just%20add%20to_json,in%20your%20project.
 # MAGIC, which makes the to_json method of the File_Object work:
-def _default(self, obj):
-    return getattr(obj.__class__, "to_json", _default.default)(obj)
-_default.default = json.JSONEncoder().default
-json.JSONEncoder.default = _default
+def _default_Encode(self, obj):
+    return getattr(obj.__class__, "to_json", _default_Encode.default)(obj)
+_default_Encode.default = json.JSONEncoder().default
+json.JSONEncoder.default = _default_Encode
 
+
+# ----------------------------------------------------------------------------------------------------------------------
+# - SOL Connector Class -
+# ----------------------------------------------------------------------------------------------------------------------
 class SOL_Connector(SOL_Connector_Base):
     def __init__(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

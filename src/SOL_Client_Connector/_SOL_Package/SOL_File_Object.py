@@ -22,7 +22,7 @@ class SOL_File(SOL_File_Base):
         return self._filepath
 
     @filepath.setter
-    def filepath(self, filepath):
+    def filepath(self, filepath:str):
         if os.path.isfile(filepath):
             self._filepath = filepath
         else:

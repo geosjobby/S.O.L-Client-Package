@@ -36,7 +36,7 @@ class SOL_Package(SOL_Package_Base):
     def api_key(self):
         return self._api_key
     @api_key.setter
-    def api_key(self, value):
+    def api_key(self, value:str):
         if not isinstance(value, str) or len(value) != self.api_key_length:
             raise SOL_Error(4402, "API key was incorrectly defined")
 
@@ -47,7 +47,7 @@ class SOL_Package(SOL_Package_Base):
     def credentials(self):
         return self._credentials
     @credentials.setter
-    def credentials(self, value):
+    def credentials(self, value:dict):
         match value:
             case {"username": str(username),"password": str(password)}:
                 self._credentials = {"username": username,"password": password}

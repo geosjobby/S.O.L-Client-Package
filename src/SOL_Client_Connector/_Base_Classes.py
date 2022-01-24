@@ -19,6 +19,14 @@ class SOL_File_Base:
     _filepath: str
     filepath:property
 
+    @property
+    def filepath(self):
+        return self._filepath
+
+    @filepath.setter
+    def filepath(self, filepath: str):
+        """file_path setter with the check if the file exists"""
+
 # ----------------------------------------------------------------------------------------------------------------------
 # - DATA PACKAGE -
 # ----------------------------------------------------------------------------------------------------------------------
@@ -37,14 +45,14 @@ class SOL_Package_Base:
     def api_key(self):
         return self._api_key
     @api_key.setter
-    def api_key(self, value):
+    def api_key(self, value:str):
         """Some checks for the correct insertion of the API key"""
     # Credentials Setup
     @property
     def credentials(self):
         return self._credentials
     @credentials.setter
-    def credentials(self, value):
+    def credentials(self, value:dict):
         """Some checks for the correct insertion of the credentials"""
     # Request for the User's first API key
     @property
@@ -116,5 +124,5 @@ class SOL_Connector_Ciphers_Base:
     def pp_encrypt(self, message: bytes, public_key:RsaKey) -> tuple[bytes, bytes, bytes, bytes]:
         """Encrypts the message with the given public key"""
 
-    def pp_decrypt(self, package_encrypted: bytes, private_key:RsaKey, session_key_encrypted, tag, nonce):
+    def pp_decrypt(self, package_encrypted: bytes, private_key:RsaKey, session_key_encrypted:bytes, tag:bytes, nonce:bytes):
         """Decrypts the given package with the session key, which in turn is decrypted by the private key"""
