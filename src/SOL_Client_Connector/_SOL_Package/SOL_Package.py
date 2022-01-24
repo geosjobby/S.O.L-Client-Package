@@ -38,7 +38,7 @@ class SOL_Package(SOL_Package_Base):
     @api_key.setter
     def api_key(self, value):
         if not isinstance(value, str) or len(value) != self.api_key_length:
-            raise SOL_Error("API key was incorrectly defined")
+            raise SOL_Error(4402, "API key was incorrectly defined")
 
         self._api_key = value
 
@@ -52,7 +52,7 @@ class SOL_Package(SOL_Package_Base):
             case {"username": str(username),"password": str(password)}:
                 self._credentials = {"username": username,"password": password}
             case _:
-                raise SOL_Error("Credentials were incorrectly defined")
+                raise SOL_Error(4403, "Credentials were incorrectly defined")
 
     # Request for the User's first API key
     @property
@@ -61,9 +61,9 @@ class SOL_Package(SOL_Package_Base):
     @first_api_key_request.setter
     def first_api_key_request(self, value):
        if not isinstance(value, bool):
-           raise SOL_Error("Request for a first API Key can only be a boolean value")
+           raise SOL_Error(4404, "Request for a first API Key can only be a boolean value")
        if self.credentials is None and value:
-           raise SOL_Error("Credentials have to be given for a first API key Request")
+           raise SOL_Error(4404, "Credentials have to be given for a first API key Request")
 
        self._first_api_key_request = value
 
@@ -78,7 +78,7 @@ class SOL_Package(SOL_Package_Base):
         if all((len(c) == 1 and isinstance(c, dict)) for c in args):
             self._commands = self.commands + list(args)
         else:
-            raise SOL_Error("Unable to insert the command(s)")
+            raise SOL_Error(4405, "Unable to insert the command(s)")
 
     def commands_clear(self):
         self._commands = []
@@ -96,7 +96,7 @@ class SOL_Package(SOL_Package_Base):
     def _package_api_key_request(self) -> bytes:
         # Check if we can form package
         if self.credentials is None:
-            raise SOL_Error("Credentials weren't setup")
+            raise SOL_Error(4403, "Credentials weren't setup")
 
         # Form the package
         return json.dumps({
@@ -106,10 +106,10 @@ class SOL_Package(SOL_Package_Base):
     def _package(self) -> bytes:
         # Check if we can form package
         if self.api_key is None:
-            raise SOL_Error("No API Key was setup")
+            raise SOL_Error(4402, "No API Key was setup")
 
         if len(self.commands) == 0:
-            raise SOL_Error("No commands were set up")
+            raise SOL_Error(4402, "No commands were set up")
 
         # Form the package
         try:
@@ -118,6 +118,6 @@ class SOL_Package(SOL_Package_Base):
                 "q": self.commands
             }).encode("utf_8")
 
-        except (json.JSONDecodeError,TypeError):
-            raise SOL_Error("Package could not be dumped to string with the following error:")
+        except (json.JSONDecodeError,TypeError) as e:
+            raise SOL_Error(4102, f"Package could not be JSON Decoded,\nwith the following error:\n{e}")
 

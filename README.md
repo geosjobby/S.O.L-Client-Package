@@ -1,4 +1,4 @@
-# - S.O.L Client Connector Package - v0.1.3
+# - S.O.L Client Connector Package - v0.1.4
 
 This is the standardized connector between any client application and the SOL API.
 The primary reason this package was assembled is that there are various client applications which all need the SOL API to work properly and have to connect to it in a similar way or their connection will be refused by the API.
@@ -24,39 +24,45 @@ from SOL_Client_Connector import (
 # Set up the connection. 
 # This does not create a permanent connection!
 # *-*
-Connection = SOL_Connector()  
-Connection.connection_setup(  
-	address=...,	# String Input  
-	port=...  	# Integer Input
-)
+try: 
+    Connection = SOL_Connector()  
+    Connection.connection_setup(  
+        address=...,	# String Input  
+        port=...  	# Integer Input
+    )
 
 # *-*
 # Create the Package Object
 # *-*
-package = SOL_Package(  
-    api_key=...,  			# String Input of your API key
- 	credentials={
-		"username": ...,	# String Input
-		"password": ...		# String Input
-	}  
-)  
+    package = SOL_Package(  
+        api_key=...,  			# String Input of your API key
+        credentials={
+            "username": ...,	# String Input
+            "password": ...		# String Input
+        }  
+    )  
 
 # *-*
 # Populate the Package Object
 # *-*
-package.command_add(
-	{"ping": None},		# Example
-	{"ping": None},		# Chain multiple commands after each other 
-) 			        # to insert multiple commands.
+    package.command_add(
+        {"ping": None},		# Example
+        {"ping": None},		# Chain multiple commands after each other 
+    ) 			        # to insert multiple commands.
 
 # *-*
 # Send the Package and wait for the result
 # Blocking Action!
 # *-*
-result = Connection.send(  
-    package  
-)
+    result = Connection.send(  
+        package  
+    )
 
+# *-*
+# Error handling
+# *-*
+except SOL_Error as e:
+    print(e)
 
 ```
 
