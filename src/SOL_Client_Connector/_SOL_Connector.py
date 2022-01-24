@@ -39,7 +39,7 @@ class SOL_Connector(SOL_Connector_Base):
         try:
             self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             self.socket.connect((self.address, self.port))
-            self.socket.settimeout(10)
+            self.socket.settimeout(60)
 
             # ----------------------------------------------------------------------------------------------------------
             # send package so the server
