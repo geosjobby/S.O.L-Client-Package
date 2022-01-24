@@ -59,7 +59,7 @@ class SOL_Package(SOL_Package_Base):
     def first_api_key_request(self):
         return self._first_api_key_request
     @first_api_key_request.setter
-    def first_api_key_request(self, value):
+    def first_api_key_request(self, value:bool):
        if not isinstance(value, bool):
            raise SOL_Error(4404, "Request for a first API Key can only be a boolean value")
        if self.credentials is None and value:
@@ -74,7 +74,7 @@ class SOL_Package(SOL_Package_Base):
     def commands(self):
         return self._commands
 
-    def command_add(self,*args):
+    def command_add(self,*args:dict):
         if all((len(c) == 1 and isinstance(c, dict)) for c in args):
             self._commands = self.commands + list(args)
         else:

@@ -4,8 +4,20 @@
 # General Packages
 import socket
 from Crypto.PublicKey.RSA import RsaKey
+import os
+from dataclasses import dataclass
+import zlib
+import base64
 
 # Custom Packages
+
+# ----------------------------------------------------------------------------------------------------------------------
+# - File Object for Package -
+# ----------------------------------------------------------------------------------------------------------------------
+@dataclass
+class SOL_File_Base:
+    _filepath: str
+    filepath:property
 
 # ----------------------------------------------------------------------------------------------------------------------
 # - DATA PACKAGE -
@@ -39,7 +51,7 @@ class SOL_Package_Base:
     def first_api_key_request(self):
         return self._first_api_key_request
     @first_api_key_request.setter
-    def first_api_key_request(self, value):
+    def first_api_key_request(self, value:bool):
         """Enable or disable request for the User's first API key"""
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -49,7 +61,7 @@ class SOL_Package_Base:
     def commands(self):
         return self._commands
 
-    def command_add(self,*args):
+    def command_add(self,*args:dict):
         """Adds one or more commands to the command list"""
 
     def commands_clear(self):
