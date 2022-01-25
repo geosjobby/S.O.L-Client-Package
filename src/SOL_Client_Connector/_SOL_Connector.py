@@ -46,11 +46,13 @@ class SOL_Connector(SOL_Connector_Base):
         if not isinstance(package, SOL_Package_Base):
             raise SOL_Error(4101,"Package was not defined as a SOL_Package Object")
 
+        package_data = package.data()
+
         # Connect to API server and send data
         try:
             self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             self.socket.connect((self.address, self.port))
-            self.socket.settimeout(60)
+            self.socket.settimeout(60000)
 
             # ----------------------------------------------------------------------------------------------------------
             # send package so the server
@@ -66,7 +68,7 @@ class SOL_Connector(SOL_Connector_Base):
                     raise SOL_Error(4104, "No connection could be established to the server")
 
             # 2. Encrypt the package
-            encrypted_package,session_key_encrypted,tag,nonce = self.ciphers.pp_encrypt(package.data(), public_key)
+            encrypted_package,session_key_encrypted,tag,nonce = self.ciphers.pp_encrypt(package_data, public_key)
             package_param = b":".join([
                 base64.b64encode(session_key_encrypted),
                 base64.b64encode(tag),

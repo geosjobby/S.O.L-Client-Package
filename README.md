@@ -1,4 +1,4 @@
-# - S.O.L Client Connector Package - v0.1.5
+# - S.O.L Client Connector Package - v0.1.6
 
 This is the standardized connector between any client application and the SOL API.
 The primary reason this package was assembled is that there are various client applications which all need the SOL API to work properly.
@@ -9,7 +9,7 @@ They all have to connect to it in a similar way or their connection will be refu
 - End-to-end encryption with the API Server
 - Base error handling, but does not do anything with the API return codes.
 The client application is meant to handle the different error codes on a use case basis.
-- File transmission
+- File transmission, with buffered compression
 
 
 ---
