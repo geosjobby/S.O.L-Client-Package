@@ -17,6 +17,7 @@ import base64
 @dataclass
 class SOL_File_Base:
     filename_temp:str
+    buffer_size:int
     _filepath: str
     _filename:str
     filepath:property
@@ -43,6 +44,7 @@ class SOL_Package_Base:
     _credentials:dict
     _commands:list
     _first_api_key_request:bool
+    _file_list:list
 
     # ------------------------------------------------------------------------------------------------------------------
     # - Properties and Checks of to be inserted Data -
@@ -73,14 +75,17 @@ class SOL_Package_Base:
     # - Command List Formation -
     # ------------------------------------------------------------------------------------------------------------------
     @property
-    def commands(self):
+    def commands(self) -> list:
         return self._commands
+    @property
+    def file_list(self) -> list[SOL_File_Base]:
+        return self._file_list
 
-    def command_add(self,*args:dict):
+    def command_add(self,*args:dict) -> None:
         """Adds one or more commands to the command list"""
 
-    def commands_clear(self):
-        """Clears the entire command list"""
+    def _iterateRecursion(self, dict_object: dict) -> None:
+        """Method that used recursion to loop over the to be added command, to check if it has a SOL_File within it"""
 
     # ------------------------------------------------------------------------------------------------------------------
     # - Package Formations -
@@ -88,9 +93,6 @@ class SOL_Package_Base:
 
     def data(self)-> bytes:
         """Method to generate the correct data"""
-
-    def files(self)->list:
-        """Method to find files correctly after the command structure has been dumped to json"""
 
     def _package_api_key_request(self) -> bytes:
         """Forms the Correct package to retrieve the user's first API Key in the format of a json dump to string"""
@@ -110,29 +112,8 @@ class SOL_Connector_Base:
     port    :   int
     error   =   SOL_Error
 
-    def __init__(self):
-        self.ciphers = SOL_Connector_Ciphers_Base()
-
     def connection_setup(self, address: str, port: int):
         """Insert address and port to connect to the API"""
 
     async def send(self, package: SOL_Package_Base) -> list[list]:
         """Send the actual data to the API by inserting the completed package"""
-
-# ----------------------------------------------------------------------------------------------------------------------
-# - ENCRYPTION -
-# ----------------------------------------------------------------------------------------------------------------------
-class SOL_Connector_Ciphers_Base:
-    _c: SOL_Connector_Base
-
-    def pp_import_key(self, public_key_str:bytes) -> RsaKey:
-        """Import an RSA key from string"""
-
-    def pp_generate_keys(self) -> tuple[RsaKey, RsaKey]:
-        """Generates a pair of public and private keys"""
-
-    def pp_encrypt(self, message: bytes, public_key:RsaKey) -> tuple[bytes, bytes, bytes, bytes]:
-        """Encrypts the message with the given public key"""
-
-    def pp_decrypt(self, package_encrypted: bytes, private_key:RsaKey, session_key_encrypted:bytes, tag:bytes, nonce:bytes):
-        """Decrypts the given package with the session key, which in turn is decrypted by the private key"""

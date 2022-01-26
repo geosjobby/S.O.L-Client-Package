@@ -12,7 +12,13 @@ from Crypto.PublicKey.RSA import RsaKey
 
 # Custom Structure
 from ._Base_Classes import SOL_Connector_Base, SOL_Error, SOL_Package_Base
-from ._SOL_Connector_Ciphers import SOL_Connector_Ciphers
+from ._SOL_Package import (
+    SOL_File,
+    pp_encrypt,        # Encryption and decryption related functions
+    pp_import_key,
+    pp_decrypt,
+    pp_generate_keys
+)
 
 # ----------------------------------------------------------------------------------------------------------------------
 # - Code -
@@ -32,30 +38,24 @@ class SOL_Connector(SOL_Connector_Base):
     def __init__(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        # Define Sub Classes
-        self.ciphers = SOL_Connector_Ciphers(self)
-
     def connection_setup(self, address:str, port:int):
-        if isinstance(address, str):
-            self.address = address
-        else:
+        if not isinstance(address, str):
             raise SOL_Error(4401, "Address was not defined as a string")
-        if isinstance(port, int):
-            self.port = port
-        else:
+        if not isinstance(port, int):
             raise SOL_Error(4401, "Port was not defined as an integer")
+        self.address = address
+        self.port = port
 
     def _package_out_handle(self, public_key: RsaKey, package_data:bytes, package_size:int=None):
         # 1. Encrypt the package
-        encrypted_package, session_key_encrypted, tag, nonce = self.ciphers.pp_encrypt(package_data, public_key)
+        encrypted_package, session_key_encrypted, tag, nonce = pp_encrypt(package_data, public_key)
         package_param = b":".join([
             base64.b64encode(session_key_encrypted),
             base64.b64encode(tag),
             base64.b64encode(nonce),
             base64.b64encode(
                 str(sys.getsizeof(encrypted_package)).encode("utf_8")
-                if package_size is None
-                    else str(package_size).encode("utf_8"))
+                if package_size is None else str(package_size).encode("utf_8"))
         ])
 
         # 4. send message parameters
@@ -68,18 +68,15 @@ class SOL_Connector(SOL_Connector_Base):
         self.socket.sendall(encrypted_package)
 
     def send(self, package:SOL_Package_Base)->list[list]:
-        # check the package is the correct format
-        if not isinstance(package, SOL_Package_Base):
-            raise SOL_Error(4101,"Package was not defined as a SOL_Package Object")
-
-        package_data = package.data()
-        filepath_list = package.files() #type:list
-        filepath_len = len(filepath_list)
-
-        print(filepath_list, filepath_len)
-
-        # Connect to API server and send data
         try:
+            # check the package is the correct format
+            if not isinstance(package, SOL_Package_Base):
+                raise SOL_Error(4101, "Package was not defined as a SOL_Package Object")
+
+            # form package data
+            package_data = package.data()
+
+            # Connect to API server and send data
             self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             self.socket.connect((self.address, self.port))
             self.socket.settimeout(60000)
@@ -93,7 +90,7 @@ class SOL_Connector(SOL_Connector_Base):
                 case b"5555":  # API unavailable at the server level and will not be able to send a reply back
                     raise SOL_Error(5555, "API server is unavailable, at the server level.\nIt did connect to the correct server location, but the actual API Server has crashed")
                 case bytes(public_key_str):
-                    public_key = self.ciphers.pp_import_key(public_key_str)
+                    public_key = pp_import_key(public_key_str)
                 case _:
                     raise SOL_Error(4104, "No connection could be established to the server")
 
@@ -103,25 +100,28 @@ class SOL_Connector(SOL_Connector_Base):
             # 3. Check if files need to be sent
             if self.socket.recv(1024).decode("utf_8") != "SOL_FILES_PARAM":
                 raise SOL_Error(4103, "Connection became unavailable")
-            if filepath_len == 0:
+            if len(package.file_list) == 0:
                 self.socket.send("CLIENT_STOP".encode("utf_8"))
             else:
                 self.socket.send("CLIENT_FILES".encode("utf_8"))
 
-                filepath_dict_package = json.dumps(filepath_list).encode("utf_8")
+                filepath_dict_package = json.dumps(list([f.filename_temp for f in package.file_list])).encode("utf_8")
                 self._package_out_handle(public_key, filepath_dict_package)
 
-                for f in filepath_list:
-                    with open(f"temp/{f}", "rb") as file:
-                        file_size = os.path.getsize(f"temp/{f}")
-                        self._package_out_handle(public_key, file.read(),package_size=file_size)
+                for f in package.file_list: #type: SOL_File
+                    with open(f"temp/{f.filename_temp}", "rb") as file:
+                        self._package_out_handle(
+                            public_key=public_key,
+                            package_data=file.read(), # as the file is already in bytes, no need to encode
+                            package_size=os.path.getsize(f"temp/{f.filename_temp}")
+                        )
 
             # ----------------------------------------------------------------------------------------------------------
             # grab the reply package
             # ----------------------------------------------------------------------------------------------------------
 
             # 1. Receive request for public key:
-            private_key, public_key = self.ciphers.pp_generate_keys()
+            private_key, public_key = pp_generate_keys()
             if self.socket.recv(1024).decode("utf_8") != "CLIENT_KEY":
                 raise SOL_Error(4103,"Connection became unavailable")
             self.socket.sendall(public_key.exportKey())
@@ -130,6 +130,7 @@ class SOL_Connector(SOL_Connector_Base):
             session_key_encrypted, tag, nonce, package_length = (base64.b64decode(a) for a in self.socket.recv(1024).split(b":"))
             package_length = int.from_bytes(package_length,"big")
             if package_length <= 0:
+                print("here")
                 raise SOL_Error(4103,"Connection became unavailable")
 
             self.socket.sendall("CLIENT_CLEAR".encode("utf_8"))
@@ -141,9 +142,13 @@ class SOL_Connector(SOL_Connector_Base):
                 #todo Pyside Signal for download progress
 
             # 4. decrypt the package
-            q_data = self.ciphers.pp_decrypt(q_data_encrypted, private_key,session_key_encrypted,tag,nonce)
+            q_data = pp_decrypt(q_data_encrypted, private_key,session_key_encrypted,tag,nonce)
 
-            # form the reply list
+            # CLEANUP
+            for f in package.file_list:  # type: SOL_File
+                f.cleanup()
+
+                # form the reply list
             result_list = json.loads(q_data.decode("utf_8"))["r"]
             return result_list
 
