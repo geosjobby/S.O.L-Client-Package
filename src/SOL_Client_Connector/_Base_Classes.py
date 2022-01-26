@@ -17,7 +17,9 @@ import base64
 @dataclass
 class SOL_File_Base:
     _filepath: str
+    _filename:str
     filepath:property
+    filename:property
 
     @property
     def filepath(self):
@@ -26,6 +28,10 @@ class SOL_File_Base:
     @filepath.setter
     def filepath(self, filepath: str):
         """file_path setter with the check if the file exists"""
+
+    @property
+    def filename(self):
+        return self._filename
 
 # ----------------------------------------------------------------------------------------------------------------------
 # - DATA PACKAGE -
