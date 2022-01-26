@@ -5,6 +5,10 @@
 import json
 import socket
 import base64
+import sys
+import os
+
+from Crypto.PublicKey.RSA import RsaKey
 
 # Custom Structure
 from ._Base_Classes import SOL_Connector_Base, SOL_Error, SOL_Package_Base
@@ -41,12 +45,38 @@ class SOL_Connector(SOL_Connector_Base):
         else:
             raise SOL_Error(4401, "Port was not defined as an integer")
 
+    def _package_out_handle(self, public_key: RsaKey, package_data:bytes, package_size:int=None):
+        # 1. Encrypt the package
+        encrypted_package, session_key_encrypted, tag, nonce = self.ciphers.pp_encrypt(package_data, public_key)
+        package_param = b":".join([
+            base64.b64encode(session_key_encrypted),
+            base64.b64encode(tag),
+            base64.b64encode(nonce),
+            base64.b64encode(
+                str(sys.getsizeof(encrypted_package)).encode("utf_8")
+                if package_size is None
+                    else str(package_size).encode("utf_8"))
+        ])
+
+        # 4. send message parameters
+        self.socket.sendall(package_param)
+
+        # 3. Send the entire package if we get the all clear
+        if self.socket.recv(1024).decode("utf_8") != "SOL_CLEAR":
+            raise SOL_Error(4103, "Connection became unavailable")
+
+        self.socket.sendall(encrypted_package)
+
     def send(self, package:SOL_Package_Base)->list[list]:
         # check the package is the correct format
         if not isinstance(package, SOL_Package_Base):
             raise SOL_Error(4101,"Package was not defined as a SOL_Package Object")
 
         package_data = package.data()
+        filepath_list = package.files() #type:list
+        filepath_len = len(filepath_list)
+
+        print(filepath_list, filepath_len)
 
         # Connect to API server and send data
         try:
@@ -67,21 +97,24 @@ class SOL_Connector(SOL_Connector_Base):
                 case _:
                     raise SOL_Error(4104, "No connection could be established to the server")
 
-            # 2. Encrypt the package
-            encrypted_package,session_key_encrypted,tag,nonce = self.ciphers.pp_encrypt(package_data, public_key)
-            package_param = b":".join([
-                base64.b64encode(session_key_encrypted),
-                base64.b64encode(tag),
-                base64.b64encode(nonce),
-                base64.b64encode(len(encrypted_package).to_bytes(len(encrypted_package).bit_length(), "big"))
-            ])
-            # 3. send message parameters
-            self.socket.send(package_param)
+            # 2. Send actual package
+            self._package_out_handle(public_key, package_data)
 
-            # 4. Send the entire package if we get the all clear
-            if self.socket.recv(1024).decode("utf_8") != "SOL_CLEAR":
-                raise SOL_Error(4103,"Connection became unavailable")
-            self.socket.send(encrypted_package)
+            # 3. Check if files need to be sent
+            if self.socket.recv(1024).decode("utf_8") != "SOL_FILES_PARAM":
+                raise SOL_Error(4103, "Connection became unavailable")
+            if filepath_len == 0:
+                self.socket.send("CLIENT_STOP".encode("utf_8"))
+            else:
+                self.socket.send("CLIENT_FILES".encode("utf_8"))
+
+                filepath_dict_package = json.dumps(filepath_list).encode("utf_8")
+                self._package_out_handle(public_key, filepath_dict_package)
+
+                for f in filepath_list:
+                    with open(f"temp/{f}", "rb") as file:
+                        file_size = os.path.getsize(f"temp/{f}")
+                        self._package_out_handle(public_key, file.read(),package_size=file_size)
 
             # ----------------------------------------------------------------------------------------------------------
             # grab the reply package

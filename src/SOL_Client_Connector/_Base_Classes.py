@@ -16,6 +16,7 @@ import base64
 # ----------------------------------------------------------------------------------------------------------------------
 @dataclass
 class SOL_File_Base:
+    filename_temp:str
     _filepath: str
     _filename:str
     filepath:property
@@ -87,6 +88,9 @@ class SOL_Package_Base:
 
     def data(self)-> bytes:
         """Method to generate the correct data"""
+
+    def files(self)->list:
+        """Method to find files correctly after the command structure has been dumped to json"""
 
     def _package_api_key_request(self) -> bytes:
         """Forms the Correct package to retrieve the user's first API Key in the format of a json dump to string"""

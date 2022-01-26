@@ -2,14 +2,13 @@
 # - Package Imports -
 # ----------------------------------------------------------------------------------------------------------------------
 # General Packages
-import json
 import os
 import base64
-import sys
+import string
 import zlib
 import hashlib
 import pathlib
-import gc
+import random
 
 # Custom Packages
 from .._Base_Classes import SOL_Error, SOL_File_Base
@@ -35,6 +34,7 @@ class SOL_File(SOL_File_Base):
 
     #  make object json decode-able
     def to_json(self):
+        self.filename_temp = "".join([random.choice((string.ascii_letters + string.digits)) for _ in range(12)])
         # buffer_size = 1073741824 # 1gb
         # buffer_size = 104857600 # 100mb
         buffer_size = 10485760 # 10mb
@@ -46,7 +46,7 @@ class SOL_File(SOL_File_Base):
         if pathlib.Path(f"temp/{self.filename}").exists():
             os.remove(f"temp/{self.filename}")
 
-        with open(self.filepath, "rb") as file, open(f"temp/{self.filename}", "ab+") as temp_file:
+        with open(self.filepath, "rb") as file, open(f"temp/{self.filename_temp}", "ab+") as temp_file:
             # Buffer for large file sizes
             file_data = file.read(buffer_size)
             n = 0
@@ -58,8 +58,7 @@ class SOL_File(SOL_File_Base):
                 print(n)
             temp_file.write(compressor.flush())
 
-        with open(f"temp/{self.filename}", "rb") as tff:
-            return {
-                "hash_value":hash_sum.hexdigest(),
-                "bytes_encoded":base64.b64encode(tff.read()).decode("utf_8")
-            }
+        return {
+            "hash_value":hash_sum.hexdigest(),
+            "file_name_temp":self.filename_temp
+        }

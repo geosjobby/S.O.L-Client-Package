@@ -2,10 +2,14 @@
 # - Package Imports -
 # ----------------------------------------------------------------------------------------------------------------------
 # General Packages
+import base64
 import json
+import os
+import hashlib
 
 # Custom Packages
 from .._Base_Classes import SOL_Package_Base, SOL_Error
+from .SOL_File_Object import SOL_File
 
 # ----------------------------------------------------------------------------------------------------------------------
 # - Code -
@@ -92,6 +96,33 @@ class SOL_Package(SOL_Package_Base):
             return self._package_api_key_request()
         else:
             return self._package()
+
+    def files(self) ->list:
+        file_list_compressed = []
+        def _iterateRecursion(dict_object:dict):
+            for _,v in dict_object.items():
+                match v:
+                    case dict():
+                        _iterateRecursion(v)
+                    case SOL_File():
+                        file_list_compressed.append(v.filename_temp)
+
+        # Go over each command to check if there is a file present
+        for c in self.commands:
+            _iterateRecursion(c)
+
+        file_list_encoded = []
+        for file_name in file_list_compressed:
+            # encode all the files in base64
+            with open(f"temp/{file_name}", "rb") as file_compressed, open(f"temp/{file_name}.sol_file", "ab+") as file_encoded:
+                file_encoded.write(base64.b64encode(file_compressed.read()))
+
+            file_list_encoded.append(f"{file_name}.sol_file")
+            # remove the original compressed file
+            os.remove(f"temp/{file_name}")
+
+        # return list of files with updated file name
+        return file_list_encoded
 
     def _package_api_key_request(self) -> bytes:
         # Check if we can form package
