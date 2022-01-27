@@ -1,4 +1,4 @@
-# - S.O.L Client Connector Package - v0.1.6
+# - S.O.L Client Connector Package - v0.2.0
 
 This is the standardized connector between any client application and the SOL API.
 The primary reason this package was assembled is that there are various client applications which all need the SOL API to work properly.
@@ -9,10 +9,10 @@ They all have to connect to it in a similar way or their connection will be refu
 - End-to-end encryption with the API Server
 - Base error handling, but does not do anything with the API return codes.
 The client application is meant to handle the different error codes on a use case basis.
-- File transmission, with buffered compression
-
+- Large and small File transmission by use of compression.
 
 ---
+
 ## Usage
 The code below is an example of how the connection and package classes might be setup to work correctly:
 ```python
@@ -53,7 +53,6 @@ try:
         {"file": SOL_File(filepath="...")}, # Custom SOl_File object to correctly insert files into a command.
                                             # This file will only be read and decoded to transmittable bytes
                                             #   on the actual sending of the package.
-
 # *-*
 # Send the Package and wait for the result
 # Blocking Action!
@@ -82,4 +81,13 @@ pip install SOL-Client-Connector-Package
 ``` 
 
 ---
+## Version notes: 
+### v0.2.0 - 2022.01.27
+- Mayor rewrite of the entire conversation flow between the client and the API.
+- Compression of a file is now handled in chunks and is technically (not implemented) possible to change the size of this chunk
+- Larger file sizes (5+GB) are now supported, though the true limit has not been tested.
+- Encryption class was removed and replaced by standalone functions.
+
+---
+
 Made By Andreas Sas, 2022
