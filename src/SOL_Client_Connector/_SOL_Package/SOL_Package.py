@@ -88,18 +88,18 @@ class SOL_Package(SOL_Package_Base):
     # ------------------------------------------------------------------------------------------------------------------
     # - Package Formations -
     # ------------------------------------------------------------------------------------------------------------------
-    def data(self) -> bytes:
+    def dict(self) -> dict:
         # If there are more edge cases for special packages, they should be checked here
         return self._package_api_key_request() if self.first_api_key_request else self._package()
 
-    def _package_api_key_request(self) -> bytes:
+    def _package_api_key_request(self) -> dict:
         # Check if we can form package
         if self.credentials is None:
             raise SOL_Error(4403, "Credentials weren't setup")
         # Form the package
-        return json.dumps({"credentials": self.credentials}).encode("utf_8")
+        return {"credentials": self.credentials}
 
-    def _package(self) -> bytes:
+    def _package(self) -> dict:
         # Check if we can form package
         if self.api_key is None:
             raise SOL_Error(4402, "No API Key was setup")
@@ -107,4 +107,4 @@ class SOL_Package(SOL_Package_Base):
             raise SOL_Error(4402, "No commands were set up")
 
         # Form the package
-        return json.dumps({"api_key": self.api_key,"q": self.commands}).encode("utf_8")
+        return{"api_key": self.api_key,"q": self.commands}

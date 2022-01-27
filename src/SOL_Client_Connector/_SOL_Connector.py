@@ -59,78 +59,121 @@ class SOL_Connector(SOL_Connector_Base):
             case a:
                 raise SOL_Error(4103, f"Connection became unavailable, unexpected command: {a}")
 
+    def _wait_for_state_multiple(self, states:list):
+        state = self.socket.recv(1024).decode("utf_8")
+        if state not in states:
+            raise self.error(4103)
+        return state
+
     def _send_state(self, state: str):
         self.socket.send(state.encode("utf_8"))
 
+        # ------------------------------------------------------------------------------------------------------------------
+    # - Form Package and parameters -
     # ------------------------------------------------------------------------------------------------------------------
-    # - Package OUTGOING Handlers -
-    # ------------------------------------------------------------------------------------------------------------------
-    def _package_out_handle(self, public_key: RsaKey, package_data:bytes):
-        # 1. Encrypt the package
-        encrypted_package, session_key_encrypted, tag, nonce = pp_encrypt( # type: bytes,bytes,bytes,bytes
-            package_data, public_key
-        )
+    @staticmethod
+    def package_parameters(session_key_encrypted: bytes = None, tag: bytes = None, nonce: bytes = None,package_length: int = None) -> bytes:
+        return json.dumps({
+            "sske": base64.b64encode(session_key_encrypted).decode("utf8"),
+            "tag": base64.b64encode(tag).decode("utf8"),
+            "nonce": base64.b64encode(nonce).decode("utf8"),
+            "len": package_length,
+        }).encode("utf8")
 
-        # 3. send message parameters
-        self.socket.sendall(b":".join([base64.b64encode(a) for a in [
-            session_key_encrypted,
-            tag,
-            nonce,
-            str(sys.getsizeof(encrypted_package)).encode("utf_8")
-        ]]))
-
-        # 4. Send the entire package if we get the all clear
-        self._wait_for_state("SOL_CLEAR")
-        self.socket.sendall(encrypted_package)
-
-    def _package_out_handle_file(self, public_key:RsaKey, file:SOL_File):
-        # Send File parameters
-        self._wait_for_state("SOL_FILE_PARAM")
-        self._package_out_handle(
-            public_key,
-            json.dumps({
-                "file_name": file.filename_temp,
-                "file_size": os.path.getsize(f"temp/{file.filename_temp}")
-            }).encode("utf_8")
-        )
-
-        # Send File
-        self._wait_for_state("SOL_FILE")
-        with open(f"temp/{file.filename_temp}", "rb") as f:
-            self._package_out_handle(
-                public_key,
-                f.read(),  # as the file is already in bytes, no need to encode
-            )
+    @staticmethod
+    def package_data(package_dict: dict) -> bytes:
+        return json.dumps(package_dict).encode("utf_8")
 
     # ------------------------------------------------------------------------------------------------------------------
-    # - Package INCOMING Handlers -
+    # - Default Packages outgoing -
     # ------------------------------------------------------------------------------------------------------------------
-    def _package_in_handle(self, private_key: RsaKey)-> list:
-        session_key_encrypted, tag, nonce, package_length = ( # type: bytes,bytes,bytes,bytes,bytes
-            base64.b64decode(a) for a in self.socket.recv(1024).split(b":")
+    def _package_out(self, state: str, package_parameters: bytes, package_data: bytes):
+        # Send parameters
+        self._send_state(f"{state}_PARAM")
+        self._wait_for_state(f"{state}_PARAM_READY")
+        self.socket.sendall(package_parameters)
+        self._wait_for_state(f"{state}_PARAM_INGESTED")
+
+        # Send package
+        self.socket.sendall(package_data)
+        self._wait_for_state(f"{state}_PACKAGE_INGESTED")
+
+    def package_out_plain(self, state: str, package_dict: dict) -> None:
+        # assemble the package bytes
+        package_data = self.package_data(package_dict)
+        # Encrypt package
+        # /
+        # assemble package parameters
+        package_parameters = self.package_parameters(None, None, None, len(package_data))
+        # send the data
+        self._package_out(state, package_parameters, package_data)
+
+    def package_out_encrypted(self, state: str, package_dict: dict, server_public_key: RsaKey) -> None:
+        # assemble the package bytes
+        package_data = self.package_data(package_dict)
+        # Encrypt package
+        encrypted_package, session_key_encrypted, tag, nonce = pp_encrypt(
+            package_data,
+            server_public_key
         )
+        # assemble package parameters
+        package_parameters = self.package_parameters(session_key_encrypted, tag, nonce, len(encrypted_package))
+        # send the data
+        self._package_out(state, package_parameters, encrypted_package)
 
-        package_length = int(package_length.decode("utf_8"))
-        if package_length <= 0:
-            raise SOL_Error(4103, "Connection became unavailable")
-        self._send_state("CLIENT_CLEAR")
+    # ------------------------------------------------------------------------------------------------------------------
+    # - Default Packages incoming -
+    # ------------------------------------------------------------------------------------------------------------------
+    def package_in_plain_and_encrypted(self, state: str, client_private_key: RsaKey) -> dict:
+        self._wait_for_state(f"{state}_PARAM")
+        self._send_state(f"{state}_PARAM_READY")
+        package_param_dict = json.loads(self.socket.recv(10240).decode("utf_8"))
+        match package_param_dict:
 
-        q_data_encrypted = b""
-        while len(q_data_encrypted) < package_length:
-            q_data_encrypted += self.socket.recv(2048)
+            # unencrypted package
+            case {"sske": None, "tag": None, "nonce": None, "len": int(package_length)}:
+                # Ingest all the parameters
+                self._send_state(f"{state}_PARAM_INGESTED")
 
-        # 4. decrypt the package and form the reply list
-        return json.loads(
-            pp_decrypt(q_data_encrypted, private_key, session_key_encrypted, tag, nonce).decode("utf_8")
-        )["r"]
+                # Ingest the package
+                package_data = b""
+                while sys.getsizeof(package_data) < package_length:
+                    package_data += self.socket.recv(1048576)
+                self._send_state(f"{state}_PACKAGE_INGESTED")
 
-    def _package_in_handle_file(self, private_key: RsaKey, file_param:dict):
-        session_key_encrypted, tag, nonce, _ = ( # type: bytes,bytes,bytes,bytes,bytes
-            base64.b64decode(a) for a in self.socket.recv(1024).split(b":")
-        )
-        self._send_state("CLIENT_CLEAR")
+                # Decrypt the package
+                # /
 
-        # todo handle the file file
+                # Decode the package
+                package_dict = json.loads(package_data.decode("utf_8"))
+                return package_dict
+
+            # encrypted package
+            case {"sske": str(sske), "tag": str(tag), "nonce": str(nonce), "len": int(package_length)}:
+                # Ingest all the parameters
+                session_key_encrypted = base64.b64decode(sske.encode("utf8"))
+                tag = base64.b64decode(tag.encode("utf8"))
+                nonce = base64.b64decode(nonce.encode("utf8"))
+                self._send_state(f"{state}_PARAM_INGESTED")
+
+                # Ingest the package
+                package_data_encrypted = b""
+                while sys.getsizeof(package_data_encrypted) < package_length:
+                    package_data_encrypted += self.socket.recv(1048576)
+                self._send_state(f"{state}_PACKAGE_INGESTED")
+
+                # Decrypt the package
+                package_data = pp_decrypt(
+                    package_data_encrypted,
+                    client_private_key,
+                    session_key_encrypted,
+                    tag,
+                    nonce
+                )
+
+                # Decode the package
+                package_dict = json.loads(package_data.decode("utf_8"))
+                return package_dict
 
     # ------------------------------------------------------------------------------------------------------------------
     # - MAIN COMMAND -
@@ -142,7 +185,8 @@ class SOL_Connector(SOL_Connector_Base):
                 raise SOL_Error(4101, "Package was not defined as a SOL_Package Object")
 
             # form package data before we ask to connect to server as the
-            package_data = package.data()
+            package_dict = package.dict()
+            client_private_key, client_public_key = pp_generate_keys()
 
             # Connect to API server and send data
             self.socket.connect((self.address, self.port))
@@ -151,69 +195,102 @@ class SOL_Connector(SOL_Connector_Base):
             # ----------------------------------------------------------------------------------------------------------
             # send package so the server
             # ----------------------------------------------------------------------------------------------------------
+
             # 1. Send request for public key
             self._send_state("SOL_KEY")
-            match self.socket.recv(1024):
-                case b"5555":  # API unavailable at the server level and will not be able to send a reply back
-                    raise SOL_Error(5555, "API server is unavailable, at the server level.\nIt did connect to the correct server location, but the actual API Server has crashed")
-                case bytes(public_key_str):
-                    public_key = pp_import_key(public_key_str)
-                    self._send_state("SOL_KEY_INGESTED")
-                case _:
-                    raise SOL_Error(4104, "No connection could be established to the server")
+            key_dict = self.package_in_plain_and_encrypted("KEY",client_private_key)
+            server_public_key = pp_import_key(key_dict["key"])
 
-            # 2. Send package with commands
-            self._wait_for_state("SOL_COMMANDS")
-            self._package_out_handle(
-                public_key,
-                package_data
+            # 2. Send API KEY
+            self._wait_for_state("API_KEY")
+            self.package_out_encrypted(
+                state="API_KEY",
+                package_dict={"api_key":package.api_key},
+                server_public_key=server_public_key
             )
-            self._wait_for_state("SOL_COMMANDS_INGESTED")
 
-            # 3. Check if files need to be sent
-            for file in package.file_list: # type: SOL_File
-                # Send server that we have files to upload
-                self._send_state("CLIENT_FILE")
-                # Send File Package
-                self._package_out_handle_file(
-                    public_key,
-                    file
-                )
-                # Wait for ingested result
-                self._wait_for_state("SOL_FILE_INGESTED")
+            # 3. Wait for API key to be validated
+            match self._wait_for_state_multiple(["API_KEY_OK", "STOP"]):
+                case "STOP": # API KEY was invalid
+                    return [[4103,None]]
+                case "API_KEY_OK":
+                    pass
+                case _:
+                    return [[5000, None]]
 
-            # 4. after all files have been handled, stop the file upload
-            self._send_state("CLIENT_STOP")
+            # 4. Send commands
+            self._wait_for_state("CLIENT_COMMANDS")
+            self.package_out_encrypted(
+                state="CLIENT_COMMANDS",
+                package_dict=package_dict,
+                server_public_key=server_public_key
+            )
 
-            # ----------------------------------------------------------------------------------------------------------
-            # grab the reply package
-            # ----------------------------------------------------------------------------------------------------------
-            # 1. Receive request for public key:
-            private_key, public_key = pp_generate_keys()
-            self._wait_for_state("CLIENT_KEY")
-            self.socket.sendall(public_key.exportKey())
-            self._wait_for_state("CLIENT_KEY_RECEIVED")
 
-            # 2. assemble the actual package data
-            self._send_state("CLIENT_COMMANDS_RESULT")
-            result = self._package_in_handle(private_key)
-            self._send_state("CLIENT_COMMANDS_RESULT_INGESTED")
 
-            # 3. ASk for files:
-            while True:
-                match self.socket.recv(1024).decode("utf_8"):
-                    case "SOL_FILE":
-                        raise SOL_Error("NO SOL_FILE Ingesting client side defined") # todo
 
-                    case "SOL_STOP" | _:
-                        break
 
-            # 4. CLEANUP
-            for f in package.file_list:  # type: SOL_File
-                f.cleanup()
-
-            # 4. Return Command list
-            return result
+            # match self.socket.recv(1024):
+            #     case b"5555":  # API unavailable at the server level and will not be able to send a reply back
+            #         raise SOL_Error(5555, "API server is unavailable, at the server level.\nIt did connect to the correct server location, but the actual API Server has crashed")
+            #     case bytes(server_public_key_str):
+            #         server_public_key = pp_import_key(server_public_key_str)
+            #         self._send_state("SOL_KEY_INGESTED")
+            #     case _:
+            #         raise SOL_Error(4104, "No connection could be established to the server")
+            #
+            # # 2. Send package with commands
+            # self._wait_for_state("SOL_COMMANDS")
+            # self._package_out_handle(
+            #     public_key,
+            #     package_data
+            # )
+            # self._wait_for_state("SOL_COMMANDS_INGESTED")
+            #
+            # # 3. Check if files need to be sent
+            # for file in package.file_list: # type: SOL_File
+            #     # Send server that we have files to upload
+            #     self._send_state("CLIENT_FILE")
+            #     # Send File Package
+            #     self._package_out_handle_file(
+            #         public_key,
+            #         file
+            #     )
+            #     # Wait for ingested result
+            #     self._wait_for_state("SOL_FILE_INGESTED")
+            #
+            # # 4. after all files have been handled, stop the file upload
+            # self._send_state("CLIENT_STOP")
+            #
+            # # ----------------------------------------------------------------------------------------------------------
+            # # grab the reply package
+            # # ----------------------------------------------------------------------------------------------------------
+            # # 1. Receive request for public key:
+            # private_key, public_key = pp_generate_keys()
+            # self._wait_for_state("CLIENT_KEY")
+            # self.socket.sendall(public_key.exportKey())
+            # self._wait_for_state("CLIENT_KEY_RECEIVED")
+            #
+            # # 2. assemble the actual package data
+            # self._send_state("CLIENT_COMMANDS_RESULT")
+            # result = self._package_in_handle(private_key)
+            # self._send_state("CLIENT_COMMANDS_RESULT_INGESTED")
+            #
+            # # 3. ASk for files:
+            # while True:
+            #     match self.socket.recv(1024).decode("utf_8"):
+            #         case "SOL_FILE":
+            #             raise SOL_Error("NO SOL_FILE Ingesting client side defined") # todo
+            #
+            #         case "SOL_STOP" | _:
+            #             break
+            #
+            # # 4. CLEANUP
+            # for f in package.file_list:  # type: SOL_File
+            #     f.cleanup()
+            #
+            # # 4. Return Command list
+            # return result
 
         # if anything goes wrong, it should be excepted here so the entire program doesn't crash
         except socket.timeout:

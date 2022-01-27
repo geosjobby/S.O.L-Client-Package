@@ -91,13 +91,13 @@ class SOL_Package_Base:
     # - Package Formations -
     # ------------------------------------------------------------------------------------------------------------------
 
-    def data(self)-> bytes:
+    def dict(self)-> dict:
         """Method to generate the correct data"""
 
-    def _package_api_key_request(self) -> bytes:
+    def _package_api_key_request(self) -> dict:
         """Forms the Correct package to retrieve the user's first API Key in the format of a json dump to string"""
 
-    def _package(self) -> bytes:
+    def _package(self) -> dict:
         """Forms the Correct package structure to execute the commands by the API"""
 
 # ----------------------------------------------------------------------------------------------------------------------
