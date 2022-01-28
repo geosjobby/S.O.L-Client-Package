@@ -74,10 +74,10 @@ class SOL_Connector(SOL_Connector_Base):
     @staticmethod
     def package_parameters(session_key_encrypted: bytes = None, tag: bytes = None, nonce: bytes = None,package_length: int = None) -> bytes:
         return json.dumps({
-            "sske": base64.b64encode(session_key_encrypted).decode("utf8"),
-            "tag": base64.b64encode(tag).decode("utf8"),
-            "nonce": base64.b64encode(nonce).decode("utf8"),
-            "len": package_length,
+            "sske": base64.b64encode(session_key_encrypted).decode("utf8") if session_key_encrypted is not None else None,
+            "tag": base64.b64encode(tag).decode("utf8") if tag is not None else None,
+            "nonce": base64.b64encode(nonce).decode("utf8") if nonce is not None else None,
+            "len": package_length if package_length is not None else None,
         }).encode("utf8")
 
     @staticmethod
@@ -104,7 +104,7 @@ class SOL_Connector(SOL_Connector_Base):
         # Encrypt package
         # /
         # assemble package parameters
-        package_parameters = self.package_parameters(None, None, None, len(package_data))
+        package_parameters = self.package_parameters(None, None, None, sys.getsizeof(package_data))
         # send the data
         self._package_out(state, package_parameters, package_data)
 
@@ -117,7 +117,7 @@ class SOL_Connector(SOL_Connector_Base):
             server_public_key
         )
         # assemble package parameters
-        package_parameters = self.package_parameters(session_key_encrypted, tag, nonce, len(encrypted_package))
+        package_parameters = self.package_parameters(session_key_encrypted, tag, nonce, sys.getsizeof(encrypted_package))
         # send the data
         self._package_out(state, package_parameters, encrypted_package)
 
@@ -195,7 +195,6 @@ class SOL_Connector(SOL_Connector_Base):
             # ----------------------------------------------------------------------------------------------------------
             # send package so the server
             # ----------------------------------------------------------------------------------------------------------
-
             # 1. Send request for public key
             self._send_state("SOL_KEY")
             key_dict = self.package_in_plain_and_encrypted("KEY",client_private_key)
@@ -214,7 +213,7 @@ class SOL_Connector(SOL_Connector_Base):
                 case "STOP": # API KEY was invalid
                     return [[4103,None]]
                 case "API_KEY_OK":
-                    pass
+                    pass # Normal way of transaction and too lazy to keep indenting forwards
                 case _:
                     return [[5000, None]]
 
@@ -226,9 +225,56 @@ class SOL_Connector(SOL_Connector_Base):
                 server_public_key=server_public_key
             )
 
+            # ----------------------------------------------------------------------------------------------------------
+            # Send addition data
+            # ----------------------------------------------------------------------------------------------------------
+            files = [0,1]
+            for f in files:
+                self._send_state("FILE_PRESENT")
+                match self._wait_for_state_multiple(["FILE_READY", "STOP"]):
+                    case "FILE_READY":
+                        self.package_out_encrypted(
+                            state="FILE",
+                            package_dict={"a":f},
+                            server_public_key=server_public_key
+                        )
+                    case "STOP":  # API KEY  COULD NOT LOAD FILES
+                        return [[4103, None]]
 
+            # ----------------------------------------------------------------------------------------------------------
+            # Wait for parser to finish
+            # ----------------------------------------------------------------------------------------------------------
+            # NEEDED TO LET THE PARSER START
+            self._send_state("CONTINUE")
 
+            # ----------------------------------------------------------------------------------------------------------
+            # Receive reply package
+            # ----------------------------------------------------------------------------------------------------------
+            self._wait_for_state("CLIENT_KEY")
+            self.package_out_plain(
+                state="KEY",
+                package_dict={"key": client_public_key.exportKey().decode("utf_8")}
+            )
 
+            self._send_state("SOL_REPLY")
+            package_dict = self.package_in_plain_and_encrypted(
+                state="SOL_REPLY",
+                client_private_key=client_private_key
+            )
+            while True:
+                match self._wait_for_state_multiple(["FILE_PRESENT","CONTINUE"]):
+                    case "FILE_PRESENT":
+                        self._send_state("FILE_READY")
+                        file_package_dict = self.package_in_plain_and_encrypted(
+                            state="FILE",
+                            client_private_key=client_private_key
+                        )
+                        continue
+
+                    case "CONTINUE": # No more files were present
+                        break
+
+            return package_dict
 
             # match self.socket.recv(1024):
             #     case b"5555":  # API unavailable at the server level and will not be able to send a reply back

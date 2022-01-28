@@ -107,4 +107,4 @@ class SOL_Package(SOL_Package_Base):
             raise SOL_Error(4402, "No commands were set up")
 
         # Form the package
-        return{"api_key": self.api_key,"q": self.commands}
+        return{"commands": self.commands}
