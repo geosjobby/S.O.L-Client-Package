@@ -190,7 +190,7 @@ class SOL_Connector(SOL_Connector_Base):
 
             # Connect to API server and send data
             self.socket.connect((self.address, self.port))
-            self.socket.settimeout(60000)
+            self.socket.settimeout(60) # 1 minute timeout
 
             # ----------------------------------------------------------------------------------------------------------
             # send package so the server
@@ -228,6 +228,7 @@ class SOL_Connector(SOL_Connector_Base):
             # ----------------------------------------------------------------------------------------------------------
             # Send addition data
             # ----------------------------------------------------------------------------------------------------------
+            # 5. Send files if present
             files = [0,1]
             for f in files:
                 self._send_state("FILE_PRESENT")
@@ -240,27 +241,35 @@ class SOL_Connector(SOL_Connector_Base):
                         )
                     case "STOP":  # API KEY  COULD NOT LOAD FILES
                         return [[4103, None]]
+            # needed to let the API know to continue
+            self._send_state("CONTINUE")
 
             # ----------------------------------------------------------------------------------------------------------
             # Wait for parser to finish
             # ----------------------------------------------------------------------------------------------------------
-            # NEEDED TO LET THE PARSER START
-            self._send_state("CONTINUE")
+            # 6. Wait for the API to respond
+
 
             # ----------------------------------------------------------------------------------------------------------
             # Receive reply package
             # ----------------------------------------------------------------------------------------------------------
+            # 7. Send Client public key
             self._wait_for_state("CLIENT_KEY")
             self.package_out_plain(
                 state="KEY",
                 package_dict={"key": client_public_key.exportKey().decode("utf_8")}
             )
 
+            # 8. Wait for reply package
             self._send_state("SOL_REPLY")
             package_dict = self.package_in_plain_and_encrypted(
                 state="SOL_REPLY",
                 client_private_key=client_private_key
             )
+            # ----------------------------------------------------------------------------------------------------------
+            # Receive addition data
+            # ----------------------------------------------------------------------------------------------------------
+            # 9. Ask for files to be sent
             while True:
                 match self._wait_for_state_multiple(["FILE_PRESENT","CONTINUE"]):
                     case "FILE_PRESENT":
@@ -269,74 +278,13 @@ class SOL_Connector(SOL_Connector_Base):
                             state="FILE",
                             client_private_key=client_private_key
                         )
-                        continue
+                        continue # go to next iteration as there might be more files incoming
 
                     case "CONTINUE": # No more files were present
                         break
 
-            return package_dict
-
-            # match self.socket.recv(1024):
-            #     case b"5555":  # API unavailable at the server level and will not be able to send a reply back
-            #         raise SOL_Error(5555, "API server is unavailable, at the server level.\nIt did connect to the correct server location, but the actual API Server has crashed")
-            #     case bytes(server_public_key_str):
-            #         server_public_key = pp_import_key(server_public_key_str)
-            #         self._send_state("SOL_KEY_INGESTED")
-            #     case _:
-            #         raise SOL_Error(4104, "No connection could be established to the server")
-            #
-            # # 2. Send package with commands
-            # self._wait_for_state("SOL_COMMANDS")
-            # self._package_out_handle(
-            #     public_key,
-            #     package_data
-            # )
-            # self._wait_for_state("SOL_COMMANDS_INGESTED")
-            #
-            # # 3. Check if files need to be sent
-            # for file in package.file_list: # type: SOL_File
-            #     # Send server that we have files to upload
-            #     self._send_state("CLIENT_FILE")
-            #     # Send File Package
-            #     self._package_out_handle_file(
-            #         public_key,
-            #         file
-            #     )
-            #     # Wait for ingested result
-            #     self._wait_for_state("SOL_FILE_INGESTED")
-            #
-            # # 4. after all files have been handled, stop the file upload
-            # self._send_state("CLIENT_STOP")
-            #
-            # # ----------------------------------------------------------------------------------------------------------
-            # # grab the reply package
-            # # ----------------------------------------------------------------------------------------------------------
-            # # 1. Receive request for public key:
-            # private_key, public_key = pp_generate_keys()
-            # self._wait_for_state("CLIENT_KEY")
-            # self.socket.sendall(public_key.exportKey())
-            # self._wait_for_state("CLIENT_KEY_RECEIVED")
-            #
-            # # 2. assemble the actual package data
-            # self._send_state("CLIENT_COMMANDS_RESULT")
-            # result = self._package_in_handle(private_key)
-            # self._send_state("CLIENT_COMMANDS_RESULT_INGESTED")
-            #
-            # # 3. ASk for files:
-            # while True:
-            #     match self.socket.recv(1024).decode("utf_8"):
-            #         case "SOL_FILE":
-            #             raise SOL_Error("NO SOL_FILE Ingesting client side defined") # todo
-            #
-            #         case "SOL_STOP" | _:
-            #             break
-            #
-            # # 4. CLEANUP
-            # for f in package.file_list:  # type: SOL_File
-            #     f.cleanup()
-            #
-            # # 4. Return Command list
-            # return result
+            # 10. Return package to the client, for further processing by client application
+            return package_dict["commands"]
 
         # if anything goes wrong, it should be excepted here so the entire program doesn't crash
         except socket.timeout:
