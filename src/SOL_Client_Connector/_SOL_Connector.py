@@ -54,6 +54,8 @@ class SOL_Connector(SOL_Connector_Base):
         match self.socket.recv(1024).decode("utf_8"):
             case s if s == state:
                 return
+            case "STOP":
+                raise self.error(5000)
             case "":
                 raise SOL_Error(4103, f"Connection became unavailable")
             case a:
@@ -61,7 +63,9 @@ class SOL_Connector(SOL_Connector_Base):
 
     def _wait_for_state_multiple(self, states:list):
         state = self.socket.recv(1024).decode("utf_8")
-        if state not in states:
+        if state == "STOP":
+            raise self.error(5000)
+        elif state not in states:
             raise self.error(4103)
         return state
 
@@ -209,9 +213,7 @@ class SOL_Connector(SOL_Connector_Base):
             )
 
             # 3. Wait for API key to be validated
-            match self._wait_for_state_multiple(["API_KEY_OK", "STOP"]):
-                case "STOP": # API KEY was invalid
-                    return [[4103,None]]
+            match self._wait_for_state_multiple(["API_KEY_OK"]):
                 case "API_KEY_OK":
                     pass # Normal way of transaction and too lazy to keep indenting forwards
                 case _:
@@ -232,15 +234,13 @@ class SOL_Connector(SOL_Connector_Base):
             files = [0,1]
             for f in files:
                 self._send_state("FILE_PRESENT")
-                match self._wait_for_state_multiple(["FILE_READY", "STOP"]):
+                match self._wait_for_state_multiple(["FILE_READY"]):
                     case "FILE_READY":
                         self.package_out_encrypted(
                             state="FILE",
                             package_dict={"a":f},
                             server_public_key=server_public_key
                         )
-                    case "STOP":  # API KEY  COULD NOT LOAD FILES
-                        return [[4103, None]]
             # needed to let the API know to continue
             self._send_state("CONTINUE")
 
