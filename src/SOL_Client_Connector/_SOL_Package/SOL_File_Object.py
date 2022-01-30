@@ -19,10 +19,10 @@ from .._Base_Classes import SOL_Error, SOL_File_Base
 class SOL_File(SOL_File_Base):
     def __init__(self, filepath:str, buffer_size:int=104857600):
         self.buffer_size = buffer_size # default is 100mb
-        self.hash_value_temp = ""
-        self.filename_temp = f"""{''.join(
-            [random.choice((string.ascii_letters + string.digits)) for _ in range(16)]
-        )}.sol_file"""
+        self.hash_value = ""
+        file_name_random = ''.join([random.choice((string.ascii_letters + string.digits)) for _ in range(16)])
+        self.filename_transmission = f"""{file_name_random}.sol_file"""
+        self.filename_temp = f"""{file_name_random}.temp"""
         self.cleanup()  # Delete temp file as a precaution, (theoretically it shouldn't exsist but you never know)
         self.filepath = filepath
 
@@ -40,11 +40,12 @@ class SOL_File(SOL_File_Base):
     def cleanup(self):
         if pathlib.Path(f"temp/{self.filename_temp}").exists():
             os.remove(f"temp/{self.filename_temp}")
+        if pathlib.Path(f"temp/{self.filename_transmission}").exists():
+            os.remove(f"temp/{self.filename_transmission}")
 
     #  make object json decode-able, thanks to pure magic
     def to_json(self):
         return {
-            "hash_value":self.hash_value_temp,
             "file_name_temp":self.filename_temp
         }
 
@@ -59,4 +60,4 @@ class SOL_File(SOL_File_Base):
                 temp_file.write(compressor.compress(chunk))
             temp_file.write(compressor.flush())
 
-        self.hash_value_temp = hash_sum.hexdigest()
+        self.hash_value = hash_sum.hexdigest()

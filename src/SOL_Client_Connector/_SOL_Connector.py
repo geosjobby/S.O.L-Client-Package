@@ -7,6 +7,7 @@ import socket
 import base64
 import sys
 import os
+import functools
 
 from Crypto.PublicKey.RSA import RsaKey
 
@@ -99,6 +100,17 @@ class SOL_Connector(SOL_Connector_Base):
         }).encode("utf8")
 
     @staticmethod
+    def file_package_parameters(session_key_encrypted: bytes = None, tag: bytes = None, nonce: bytes = None,package_length: int = None, filename:str=None,hash_value:str=None) -> bytes:
+        return json.dumps({
+            "sske": base64.b64encode(session_key_encrypted).decode("utf8") if session_key_encrypted is not None else None,
+            "tag": base64.b64encode(tag).decode("utf8") if tag is not None else None,
+            "nonce": base64.b64encode(nonce).decode("utf8") if nonce is not None else None,
+            "len": package_length if package_length is not None else None,
+            "file_name": base64.b64encode(filename.encode("utf8")).decode("utf8") if filename is not None else None,
+            "hash_value": base64.b64encode(hash_value.encode("utf8")).decode("utf8") if hash_value is not None else None,
+        }).encode("utf8")
+
+    @staticmethod
     def package_data(package_dict: dict) -> bytes:
         return json.dumps(package_dict).encode("utf_8")
 
@@ -138,6 +150,63 @@ class SOL_Connector(SOL_Connector_Base):
         package_parameters = self.package_parameters(session_key_encrypted, tag, nonce, sys.getsizeof(encrypted_package))
         # send the data
         self._package_out(state, package_parameters, encrypted_package)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # - FILE Packages outgoing -
+    # ------------------------------------------------------------------------------------------------------------------
+    def file_package_out_encrypted(self, state: str, file_object: SOL_File) -> None:
+        # Encrypt File
+        with open(f"temp/{file_object.filename_temp}", "rb") as file_temp, open(f"temp/{file_object.filename_transmission}", "ab+") as file_transmission:
+            encrypted_file, session_key_encrypted, tag, nonce = pp_encrypt(
+                file_temp.read(),
+                self._server_public_key
+            )
+            file_transmission.write(encrypted_file)
+        # assemble package parameters
+        package_length = os.path.getsize(f"temp/{file_object.filename_transmission}")
+
+        package_parameters = self.file_package_parameters(
+            session_key_encrypted,
+            tag,
+            nonce,
+            package_length,
+            file_object.filename_transmission,
+            file_object.hash_value
+        )
+
+        # Send parameters
+        self._send_state(f"{state}_PARAM")
+        self._wait_for_state(f"{state}_PARAM_READY")
+        self.socket.sendall(package_parameters)
+        self._wait_for_state(f"{state}_PARAM_INGESTED")
+
+        # get the buffer size
+        match package_length:
+            case int(a) if a < 1048576:  # up to 1mb
+                buffer_size = 102400  # buffer of 100kb
+            case int(a) if 1048576 < a < 10485760:  # between 1mb and 10mb
+                buffer_size = 1048576  # buffer of 1mb
+            case int(a) if 10485760 < a < 10485760:  # between 10mb and 100mb
+                buffer_size = 10485760  # buffer of 10mb
+            case int(a) if a > 10485760:
+                buffer_size = 10485600  # buffer of 100mb
+            case _:
+                raise self.error(5000)
+
+        # send the file in chunks
+        with open(f"temp/{file_object.filename_transmission}", "rb") as file_transmission_:
+            for chunk in iter(functools.partial(file_transmission_.read, buffer_size), b""):
+                self.socket.sendall(chunk)
+
+        # wait for ingestion to finish
+        self._wait_for_state(f"{state}_PACKAGE_INGESTED")
+
+        # wait for file decompression and check to happen
+        self._wait_for_state(f"{state}_CHECKED")
+
+        # Cleanup the temp files
+        os.remove(f"temp/{file_object.filename_transmission}")
+        os.remove(f"temp/{file_object.filename_temp}")
 
     # ------------------------------------------------------------------------------------------------------------------
     # - Default Packages incoming -
@@ -208,7 +277,7 @@ class SOL_Connector(SOL_Connector_Base):
 
             # Connect to API server and send data
             self.socket.connect((self.address, self.port))
-            self.socket.settimeout(60) # 1 minute timeout
+            self.socket.settimeout(6000) # 1 minute timeout
 
             # ----------------------------------------------------------------------------------------------------------
             # send package so the server
@@ -244,14 +313,12 @@ class SOL_Connector(SOL_Connector_Base):
             # Send addition data
             # ----------------------------------------------------------------------------------------------------------
             # 5. Send files if present
-            for f in package.file_list:
+            for f in package.file_list: #type: SOL_File
                 self._send_state("FILE_PRESENT")
                 match self._wait_for_state_multiple(["FILE_READY"]):
                     case "FILE_READY":
-                        self.package_out_encrypted(
-                            state="FILE",
-                            package_dict={"a":f}
-                        )
+                        self.file_package_out_encrypted("FILE",f)
+
             # needed to let the API know to continue
             self._send_state("CONTINUE")
 
