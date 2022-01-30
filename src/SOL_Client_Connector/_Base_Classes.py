@@ -16,6 +16,7 @@ import base64
 # ----------------------------------------------------------------------------------------------------------------------
 @dataclass
 class SOL_File_Base:
+    hash_value_temp:str
     filename_temp:str
     buffer_size:int
     _filepath: str

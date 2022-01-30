@@ -99,12 +99,19 @@ class SOL_Package(SOL_Package_Base):
         # Form the package
         return {"credentials": self.credentials}
 
+    def _package_compress_files(self) -> None:
+        for fo in self._file_list: #type: SOL_File
+            fo.compress()
+
     def _package(self) -> dict:
         # Check if we can form package
         if self.api_key is None:
             raise SOL_Error(4402, "No API Key was setup")
         if len(self.commands) == 0:
             raise SOL_Error(4402, "No commands were set up")
+
+        # start up the compression of any files present
+        self._package_compress_files()
 
         # Form the package
         return{"commands": self.commands}

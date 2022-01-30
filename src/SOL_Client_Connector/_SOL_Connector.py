@@ -244,8 +244,7 @@ class SOL_Connector(SOL_Connector_Base):
             # Send addition data
             # ----------------------------------------------------------------------------------------------------------
             # 5. Send files if present
-            files = [0,1]
-            for f in files:
+            for f in package.file_list:
                 self._send_state("FILE_PRESENT")
                 match self._wait_for_state_multiple(["FILE_READY"]):
                     case "FILE_READY":
