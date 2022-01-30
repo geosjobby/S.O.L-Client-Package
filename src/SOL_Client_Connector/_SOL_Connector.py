@@ -238,6 +238,7 @@ class SOL_Connector(SOL_Connector_Base):
                 state="CLIENT_COMMANDS",
                 package_dict=package_dict
             )
+            self._wait_for_state("COMMANDS_LENCHECKED")
 
             # ----------------------------------------------------------------------------------------------------------
             # Send addition data

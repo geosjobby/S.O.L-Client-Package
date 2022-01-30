@@ -18,7 +18,7 @@ def pp_import_key(public_key_str:bytes) -> RsaKey:
 
 def pp_generate_keys() -> tuple[RsaKey,RsaKey]:
     """Generates a pair of public and private keys"""
-    m_length = 1024
+    m_length = 1024 # todo change this to 2048 in production
     private_key = RSA.generate(m_length, new().read)
     public_key = private_key.public_key()
     return private_key, public_key
