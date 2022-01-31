@@ -31,7 +31,6 @@ class SOL_Connector(SOL_Connector_Base):
         self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.PH = PH(self.socket)
 
-    def _buffer_size(self, object_size:int):
         # Set up address and port
         if not isinstance(address, str):
             raise SOL_Error(4401, "Address was not defined as a string")
