@@ -1,4 +1,4 @@
-# - S.O.L Client Connector Package - v0.3.0
+# - S.O.L Client Connector Package - v0.3.1
 
 This is the standardized connector between any client application and the SOL API.
 The primary reason this package was assembled is that there are various client applications which all need the SOL API to work properly.
