@@ -1,4 +1,4 @@
-# - S.O.L Client Connector Package - v0.2.0
+# - S.O.L Client Connector Package - v0.3.0
 
 This is the standardized connector between any client application and the SOL API.
 The primary reason this package was assembled is that there are various client applications which all need the SOL API to work properly.
@@ -9,7 +9,8 @@ They all have to connect to it in a similar way or their connection will be refu
 - End-to-end encryption with the API Server
 - Base error handling, but does not do anything with the API return codes.
 The client application is meant to handle the different error codes on a use case basis.
-- Large and small File transmission by use of compression.
+- Large and small File transmission by use of compression, download and upload.
+- Variable compression depth for each file object.
 
 ---
 
@@ -28,8 +29,7 @@ from SOL_Client_Connector import (
 # This does not create a permanent connection!
 # *-*
 try: 
-    Connection = SOL_Connector()  
-    Connection.connection_setup(  
+    Connection = SOL_Connector( 
         address=...,	# String Input  
         port=...  	# Integer Input
     )
