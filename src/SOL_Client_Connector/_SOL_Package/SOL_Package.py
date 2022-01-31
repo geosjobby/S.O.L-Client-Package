@@ -2,31 +2,26 @@
 # - Package Imports -
 # ----------------------------------------------------------------------------------------------------------------------
 # General Packages
-import json
+import base64
 
 # Custom Packages
-from .._Base_Classes import SOL_Package_Base, SOL_Error
+from .._Base_Classes import SOL_Package_Base, SOL_Error, BASE_SOL_Credentials
 from .._SOL_File import SOL_File
+from .._SOL_Credentials import SOL_Credentials
 
 # ----------------------------------------------------------------------------------------------------------------------
 # - Code -
 # ----------------------------------------------------------------------------------------------------------------------
 class SOL_Package(SOL_Package_Base):
-    def __init__(self, api_key:str=None, credentials:dict=None, first_api_key_request:bool=False):
+    def __init__(self, api_key:str=None):
         # Set default var
-        self._api_key = None
-        self._credentials = None
         self._commands = []
         self._file_list = []
+        self._credentials = None
 
         # Check if immediate input was given
         if api_key is not None:
             self.api_key = api_key
-        if credentials is not None:
-            self.credentials = credentials
-
-        # has to be set after everything else, depends on self._api_key and self._credentials
-        self.first_api_key_request = first_api_key_request
 
     # ------------------------------------------------------------------------------------------------------------------
     # - Properties and Checks of to be inserted Data -
@@ -41,38 +36,15 @@ class SOL_Package(SOL_Package_Base):
         or len(value) != self.api_key_length:
             raise SOL_Error(4402, "API key was incorrectly defined")
         self._api_key = value
-
-    # Credentials Setup
-    @property
-    def credentials(self):
-        return self._credentials
-    @credentials.setter
-    def credentials(self, value:dict):
-        match value:
-            case {"username": str(username),"password": str(password)}:
-                self._credentials = {"username": username,"password": password}
-            case _:
-                raise SOL_Error(4403, "Credentials were incorrectly defined")
-
-    # Request for the User's first API key
-    @property
-    def first_api_key_request(self):
-        return self._first_api_key_request
-    @first_api_key_request.setter
-    def first_api_key_request(self, value:bool):
-       if not isinstance(value, bool):
-           raise SOL_Error(4404, "Request for a first API Key can only be a boolean value")
-       if self.credentials is None and value:
-           raise SOL_Error(4404, "Credentials have to be given for a first API key Request")
-       self._first_api_key_request = value
-
     @property
     def commands(self) -> list:
         return self._commands
-
     @property
     def file_list(self) -> list[SOL_File]:
         return self._file_list
+    @property
+    def credentials(self) -> BASE_SOL_Credentials:
+        return self._credentials
 
     # ------------------------------------------------------------------------------------------------------------------
     # - Command List Formation -
@@ -88,24 +60,31 @@ class SOL_Package(SOL_Package_Base):
 
     def _iterateRecursion(self, dict_object: dict) -> None:
         for _, v in dict_object.items():
-            if isinstance(v, SOL_File):
-                self._file_list.append(v)
-            elif isinstance(v, dict):
-                self._iterateRecursion(v) # the few times in a year that I use recursion
+            match v:
+                case SOL_File():
+                    self._file_list.append(v)
+                case dict():
+                    self._iterateRecursion(v) # the few times in a year that I use recursion
+                case SOL_Credentials():
+                    if self.credentials is not None:
+                        if id(self.credentials) != id(v):
+                            raise SOL_Error(4000, "Only one unique set of credentials can be stored within the conversation")
+                    else:
+                        self._credentials = v
 
     # ------------------------------------------------------------------------------------------------------------------
     # - Package Formations -
     # ------------------------------------------------------------------------------------------------------------------
-    def dict(self) -> dict:
+    def pre_check(self) -> None:
         # Check if we can form package
         if self.api_key is None:
             raise SOL_Error(4402, "No API Key was setup")
         if len(self.commands) == 0:
             raise SOL_Error(4402, "No commands were set up")
-
         # start up the compression of any files present
         for fo in self._file_list:  # type: SOL_File
             fo.compress_and_hash()
 
+    def dict(self) -> dict:
         # Form the package
         return{"commands": self.commands}

@@ -12,12 +12,12 @@ import random
 import math
 
 # Custom Packages
-from .._Base_Classes import SOL_Error, SOL_File_Base
+from .._Base_Classes import SOL_Error, BASE_Sol_File
 
 # ----------------------------------------------------------------------------------------------------------------------
 # - SOL File Object -
 # ----------------------------------------------------------------------------------------------------------------------
-class SOL_File(SOL_File_Base):
+class SOL_File(BASE_Sol_File):
     def __init__(self, filepath:str,compression:int=9):
         self.hash_value = ""
         file_name_random = ''.join([random.choice((string.ascii_letters + string.digits)) for _ in range(16)])

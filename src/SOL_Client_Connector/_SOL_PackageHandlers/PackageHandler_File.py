@@ -13,7 +13,7 @@ import math
 
 
 # Custom Packages
-from .._Base_Classes import BASE_PackageHandler_File, SOL_File_Base
+from .._Base_Classes import BASE_PackageHandler_File, BASE_Sol_File
 from .PackageHandler_Base import PackageHandler_Base
 from ..SOL_Encryption import *
 
@@ -65,7 +65,7 @@ class PackageHandler_File(PackageHandler_Base,BASE_PackageHandler_File):
     # ------------------------------------------------------------------------------------------------------------------
     # - FILE Packages outgoing -
     # ------------------------------------------------------------------------------------------------------------------
-    def file_package_output(self, state: str, file_object: SOL_File_Base, server_public_key: RsaKey) -> None:
+    def file_package_output(self, state: str, file_object: BASE_Sol_File, server_public_key: RsaKey) -> None:
         # Not needed in client as the client compresses the files before connecting to the API server
         # # compress the file, which also creates the hash value
         # file_object.compress_and_hash()

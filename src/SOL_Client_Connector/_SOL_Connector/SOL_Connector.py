@@ -6,7 +6,7 @@ import json
 import socket
 
 # Custom Structure
-from .._Base_Classes import SOL_Connector_Base, STOP_Error, SOL_Error, SOL_Package_Base
+from .._Base_Classes import SOL_Connector_Base, STOP_Error, SOL_Error, SOL_Package_Base, BASE_SOL_Credentials
 from ..SOL_Encryption import *
 from .._SOL_File import SOL_File
 from .._SOL_PackageHandlers import PackageHandler_Full as PH
@@ -48,7 +48,8 @@ class SOL_Connector(SOL_Connector_Base):
             if not isinstance(package, SOL_Package_Base):
                 raise SOL_Error(4101, "Package was not defined as a SOL_Package Object")
 
-            # form package data before we ask to connect to server as the
+            # Run the pre-check (this does the compression)
+            package.pre_check()
             package_dict = package.dict()
             client_private_key, client_public_key = pp_generate_keys()
 
@@ -102,6 +103,14 @@ class SOL_Connector(SOL_Connector_Base):
                     file_object=f,
                     server_public_key=server_public_key
                 )
+            if package.credentials is not None:
+                self.PH.send_state("CREDENTIALS_PRESENT")
+                self.PH.wait_for_state("CREDENTIALS_READY")
+                self.PH.package_output_encrypted(
+                    state="CREDENTIALS",
+                    package_dict=package.credentials.encrypt(server_public_key),
+                    server_public_key=server_public_key
+                )
 
             # needed to let the API know to continue
             self.PH.send_state("CONTINUE")
@@ -109,19 +118,19 @@ class SOL_Connector(SOL_Connector_Base):
             # ----------------------------------------------------------------------------------------------------------
             # Wait for parser to finish
             # ----------------------------------------------------------------------------------------------------------
-            # 6. Wait for the API to respond
+            # 7. Wait for the API to respond
 
             # ----------------------------------------------------------------------------------------------------------
             # Receive reply package
             # ----------------------------------------------------------------------------------------------------------
-            # 7. Send Client public key
+            # 8. Send Client public key
             self.PH.wait_for_state("CLIENT_KEY")
             self.PH.package_output_plain(
                 state="KEY",
                 package_dict={"key": client_public_key.exportKey().decode("utf_8")}
             )
 
-            # 8. Wait for reply package
+            # 9. Wait for reply package
             self.PH.send_state("SOL_REPLY")
             package_dict = self.PH.package_input(
                 state="SOL_REPLY",
@@ -130,7 +139,7 @@ class SOL_Connector(SOL_Connector_Base):
             # ----------------------------------------------------------------------------------------------------------
             # Receive addition data
             # ----------------------------------------------------------------------------------------------------------
-            # 9. Ask for files to be sent
+            # 10. Ask for files to be sent
             while True:
                 match self.PH.wait_for_state_multiple(["FILE_PRESENT","CONTINUE"]):
                     case "FILE_PRESENT":
@@ -144,11 +153,11 @@ class SOL_Connector(SOL_Connector_Base):
                     case "CONTINUE": # No more files were present
                         break
 
-            # 10. Run a cleanup
+            # 11. Run a cleanup
             for f in package.file_list:  # type: SOL_File
                 f.cleanup()
 
-            # 11. Return package to the client, for further processing by client application
+            # 12. Return package to the client, for further processing by client application
             return package_dict["commands"]
 
         # if anything goes wrong, it should be excepted here so the entire program doesn't crash

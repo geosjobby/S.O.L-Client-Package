@@ -9,3 +9,6 @@ from ._SOL_Package import SOL_Package
 
 # The File object class
 from ._SOL_File import SOL_File
+
+# Credentials
+from ._SOL_Credentials import SOL_Credentials

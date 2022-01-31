@@ -1,1 +1,1 @@
-from ._SOL_Connector import SOL_Connector
+from .SOL_Connector import SOL_Connector

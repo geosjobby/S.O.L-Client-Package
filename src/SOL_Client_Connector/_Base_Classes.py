@@ -13,7 +13,7 @@ from typing import Any
 # - File Object for Package -
 # ----------------------------------------------------------------------------------------------------------------------
 @dataclass
-class SOL_File_Base:
+class BASE_Sol_File:
     hash_value:str
     filename_temp:str
     filename_transmission:str
@@ -31,27 +31,43 @@ class SOL_File_Base:
         """used to calculate the buffer size of file compression"""
     def compress_and_hash(self)->None:
         """compresses the file and stores them in temp folder"""
+
+@dataclass
+class BASE_SOL_Credentials:
+    _username:bytes = field(repr=False)
+    _password:bytes = field(repr=False)
+    _password_new:bytes = field(repr=False)
+    _nonce:bytes = field(repr=False)
+    _tag:bytes = field(repr=False)
+    _session_key:bytes = field(repr=False)
+    _encrypted_credentials:bytes = field(repr=False)
+
+    def encrypt(self, server_public_key) -> dict:
+        """encrypt credentials"""
+    def to_json(self) -> str:
+        """form dictionary to be placed in the eventual command"""
+
 # ----------------------------------------------------------------------------------------------------------------------
 # - DATA PACKAGE -
 # ----------------------------------------------------------------------------------------------------------------------
 class SOL_Package_Base:
     api_key_length = 128
     _api_key:str
-    _credentials:dict
     _commands:list
-    _first_api_key_request:bool
     _file_list:list
+    _credentials:BASE_SOL_Credentials
 
     api_key:property
-    credentials:property
-    first_api_key_request:property
     commands:property
     file_list:property
+    credentials:property
 
     def command_add(self,*args:dict) -> None:
         """Adds one or more commands to the command list"""
     def _iterateRecursion(self, dict_object: dict) -> None:
         """Method that used recursion to loop over the to be added command, to check if it has a SOL_File within it"""
+    def pre_check(self) -> None:
+        """runs methods that have to happen before the connection to the server is established"""
     def dict(self)-> dict:
         """Method to generate the correct data"""
 
@@ -87,7 +103,7 @@ class BASE_PackageHandler_File(BASE_PackageHandler_Base):
     @staticmethod
     def file_package_parameters(session_key_encrypted: bytes = None,nonce: bytes = None,package_length: int = None,filename: str = None,hash_value: str = None) -> bytes:
         """Form file parameters to be sent to the client"""
-    def file_package_output(self, state: str, file_object: SOL_File_Base, client_public_key: RsaKey) -> None:
+    def file_package_output(self, state: str, file_object: BASE_Sol_File, client_public_key: RsaKey) -> None:
         """Send a file to the client"""
     def file_package_input(self, state: str, server_private_key: RsaKey) -> None:
         """Receive a file from the client"""
