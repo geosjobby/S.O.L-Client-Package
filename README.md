@@ -1,4 +1,4 @@
-# - S.O.L Client Connector Package - v0.3.1
+# - S.O.L Client Connector Package - v0.3.2
 
 This is the standardized connector between any client application and the SOL API.
 The primary reason this package was assembled is that there are various client applications which all need the SOL API to work properly.
@@ -90,15 +90,7 @@ Project files can be found at:
 Pip installs by the following command: 
 ```
 pip install SOL-Client-Connector-Package
-``` 
-
----
-## Version notes: 
-### v0.2.0 - 2022.01.27
-- Mayor rewrite of the entire conversation flow between the client and the API.
-- Compression of a file is now handled in chunks and is technically (not implemented) possible to change the size of this chunk
-- Larger file sizes (5+GB) are now supported, though the true limit has not been tested.
-- Encryption class was removed and replaced by standalone functions.
+```
 
 ---
 
