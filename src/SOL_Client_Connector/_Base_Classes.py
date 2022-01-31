@@ -4,7 +4,8 @@
 # General Packages
 import socket
 from Crypto.PublicKey.RSA import RsaKey
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 # Custom Packages
 
@@ -13,26 +14,23 @@ from dataclasses import dataclass
 # ----------------------------------------------------------------------------------------------------------------------
 @dataclass
 class SOL_File_Base:
-    hash_value_temp:str
+    hash_value:str
     filename_temp:str
-    buffer_size:int
+    filename_transmission:str
     _filepath: str
     _filename:str
-    filepath:property
-    filename:property
+    filepath:property =  field(repr=False)
+    filename:property =  field(repr=False)
+    compression_level:int
 
-    @property
-    def filepath(self):
-        return self._filepath
-
-    @filepath.setter
-    def filepath(self, filepath: str):
-        """file_path setter with the check if the file exists"""
-
-    @property
-    def filename(self):
-        return self._filename
-
+    def cleanup(self)-> None:
+        """clean up any remaining temp files"""
+    def to_json(self) -> str:
+        """used by the json decoder to place the file_name string at the location of the Sol_File in the command structure"""
+    def _buffer_size(self, object_size: int) -> int:
+        """used to calculate the buffer size of file compression"""
+    def compress_and_hash(self)->None:
+        """compresses the file and stores them in temp folder"""
 # ----------------------------------------------------------------------------------------------------------------------
 # - DATA PACKAGE -
 # ----------------------------------------------------------------------------------------------------------------------
@@ -44,80 +42,90 @@ class SOL_Package_Base:
     _first_api_key_request:bool
     _file_list:list
 
-    # ------------------------------------------------------------------------------------------------------------------
-    # - Properties and Checks of to be inserted Data -
-    # ------------------------------------------------------------------------------------------------------------------
-    # Api Key setup
-    @property
-    def api_key(self):
-        return self._api_key
-    @api_key.setter
-    def api_key(self, value:str):
-        """Some checks for the correct insertion of the API key"""
-    # Credentials Setup
-    @property
-    def credentials(self):
-        return self._credentials
-    @credentials.setter
-    def credentials(self, value:dict):
-        """Some checks for the correct insertion of the credentials"""
-    # Request for the User's first API key
-    @property
-    def first_api_key_request(self):
-        return self._first_api_key_request
-    @first_api_key_request.setter
-    def first_api_key_request(self, value:bool):
-        """Enable or disable request for the User's first API key"""
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # - Command List Formation -
-    # ------------------------------------------------------------------------------------------------------------------
-    @property
-    def commands(self) -> list:
-        return self._commands
-    @property
-    def file_list(self) -> list[SOL_File_Base]:
-        return self._file_list
+    api_key:property
+    credentials:property
+    first_api_key_request:property
+    commands:property
+    file_list:property
 
     def command_add(self,*args:dict) -> None:
         """Adds one or more commands to the command list"""
-
     def _iterateRecursion(self, dict_object: dict) -> None:
         """Method that used recursion to loop over the to be added command, to check if it has a SOL_File within it"""
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # - Package Formations -
-    # ------------------------------------------------------------------------------------------------------------------
-
     def dict(self)-> dict:
         """Method to generate the correct data"""
 
-    def _package_api_key_request(self) -> dict:
-        """Forms the Correct package to retrieve the user's first API Key in the format of a json dump to string"""
+# ----------------------------------------------------------------------------------------------------------------------
+# - PACKAGE HANDLER -
+# ----------------------------------------------------------------------------------------------------------------------
+class SOL_Error(Exception):
+    pass
 
-    def _package(self) -> dict:
-        """Forms the Correct package structure to execute the commands by the API"""
+class BASE_PackageHandler_Base:
+    error=SOL_Error
+    connection: socket.socket
+    address: Any
+
+    def _buffer_size(self, object_size: int) -> int:
+        """returns a buffer size (10kb,100kb,1mb,...) to be used by file chunk readers"""
+    def cleanup(self) -> None:
+        """cleans up any data of the object"""
+    def close(self) -> None:
+        """closes the connection"""
+    def wait_for_state(self, state: str) -> None:
+        """Blocking wait for Client to send a state"""
+    def wait_for_state_multiple(self, states: list) -> str:
+        """Blocking wait for Client to send a state, and returns the correct state"""
+    def send_state(self, state: str) -> None:
+        """Send state to Client"""
+    def _package_out(self, state: str, package_parameters: bytes, package_data: bytes) -> None:
+        """Sends the package parameters and the entire package"""
+
+class BASE_PackageHandler_File(BASE_PackageHandler_Base):
+    def _file_package_handle_chunk(self, filepath_1: str, filepath_2: str, function_,file_handling_section: str) -> None:
+        """Handle the transformation between file 1 and file 2 in chunks"""
+    @staticmethod
+    def file_package_parameters(session_key_encrypted: bytes = None,nonce: bytes = None,package_length: int = None,filename: str = None,hash_value: str = None) -> bytes:
+        """Form file parameters to be sent to the client"""
+    def file_package_output(self, state: str, file_object: SOL_File_Base, client_public_key: RsaKey) -> None:
+        """Send a file to the client"""
+    def file_package_input(self, state: str, server_private_key: RsaKey) -> None:
+        """Receive a file from the client"""
+
+class BASE_PackageHandler_Data(BASE_PackageHandler_Base):
+    @staticmethod
+    def package_parameters(session_key_encrypted: bytes = None, tag: bytes = None, nonce: bytes = None, package_length:int=None) -> bytes:
+        """Forms the package parameters and returns them as a dict in bytes"""
+    @staticmethod
+    def package_data(package_dict: dict) -> bytes:
+        """forms the package into a bytes encoded dict"""
+
+    def package_output_plain(self, state: str, package_dict: dict) -> None:
+        """Sends a package which IS NOT encrypted"""
+    def package_output_encrypted(self, state: str, package_dict: dict, client_public_key: RsaKey) -> None:
+        """Sends a package which IS encrypted"""
+    def package_input(self, state: str, server_private_key: RsaKey) -> dict:
+        """Dependent on the incoming package parameters it will either pass the full package directly into a json or first decrypt it with the server's private key"""
+
+class BASE_PackageHandler_Full(BASE_PackageHandler_Data, BASE_PackageHandler_File):
+    pass
 
 # ----------------------------------------------------------------------------------------------------------------------
 # - CONNECTOR -
 # ----------------------------------------------------------------------------------------------------------------------
-class _SOL_STOP_Error(Exception):
-    pass
-
-class SOL_Error(Exception):
+class STOP_Error(Exception):
     pass
 
 class SOL_Connector_Base:
-    socket  :   socket.socket
-    address :   str
-    port    :   int
-    error   =   SOL_Error
+    # Keys:
     _client_private_key: RsaKey
     _client_public_key: RsaKey
     _server_public_key: RsaKey
 
+    address :   str
+    port    :   int
+
     def connection_setup(self, address: str, port: int):
         """Insert address and port to connect to the API"""
-
     async def send(self, package: SOL_Package_Base) -> list[list]:
         """Send the actual data to the API by inserting the completed package"""

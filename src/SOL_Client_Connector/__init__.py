@@ -5,4 +5,7 @@ from ._Base_Classes import SOL_Error
 from ._SOL_Connector import SOL_Connector
 
 # The Data Package class
-from ._SOL_Package import SOL_Package, SOL_File
+from ._SOL_Package import SOL_Package
+
+# The File object class
+from ._SOL_File import SOL_File

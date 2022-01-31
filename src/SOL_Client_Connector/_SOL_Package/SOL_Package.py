@@ -6,7 +6,7 @@ import json
 
 # Custom Packages
 from .._Base_Classes import SOL_Package_Base, SOL_Error
-from .SOL_File_Object import SOL_File
+from .._SOL_File import SOL_File
 
 # ----------------------------------------------------------------------------------------------------------------------
 # - Code -
@@ -66,6 +66,14 @@ class SOL_Package(SOL_Package_Base):
            raise SOL_Error(4404, "Credentials have to be given for a first API key Request")
        self._first_api_key_request = value
 
+    @property
+    def commands(self) -> list:
+        return self._commands
+
+    @property
+    def file_list(self) -> list[SOL_File]:
+        return self._file_list
+
     # ------------------------------------------------------------------------------------------------------------------
     # - Command List Formation -
     # ------------------------------------------------------------------------------------------------------------------
@@ -89,21 +97,6 @@ class SOL_Package(SOL_Package_Base):
     # - Package Formations -
     # ------------------------------------------------------------------------------------------------------------------
     def dict(self) -> dict:
-        # If there are more edge cases for special packages, they should be checked here
-        return self._package_api_key_request() if self.first_api_key_request else self._package()
-
-    def _package_api_key_request(self) -> dict:
-        # Check if we can form package
-        if self.credentials is None:
-            raise SOL_Error(4403, "Credentials weren't setup")
-        # Form the package
-        return {"credentials": self.credentials}
-
-    def _package_compress_files(self) -> None:
-        for fo in self._file_list: #type: SOL_File
-            fo.compress()
-
-    def _package(self) -> dict:
         # Check if we can form package
         if self.api_key is None:
             raise SOL_Error(4402, "No API Key was setup")
@@ -111,7 +104,8 @@ class SOL_Package(SOL_Package_Base):
             raise SOL_Error(4402, "No commands were set up")
 
         # start up the compression of any files present
-        self._package_compress_files()
+        for fo in self._file_list:  # type: SOL_File
+            fo.compress_and_hash()
 
         # Form the package
         return{"commands": self.commands}

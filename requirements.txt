@@ -1,1 +1,4 @@
 pycryptodome ~= 3.12.0
+keyring~=23.5.0
+bcrypt~=3.2.0
+setuptools~=60.5.0
