@@ -319,7 +319,7 @@ class SOL_Connector(SOL_Connector_Base):
         )
 
         # delete temp file
-        # os.remove(f"{file_path}.temp")
+        os.remove(f"{file_path}.temp")
 
         # Decompress file
         decompressor = zlib.decompressobj()
@@ -330,7 +330,7 @@ class SOL_Connector(SOL_Connector_Base):
         )
 
         # delete temp file
-        # os.remove(f"{file_path}.temp2")
+        os.remove(f"{file_path}.temp2")
 
         # check hash_sum in chunks
         hash_sum = hashlib.sha256()
