@@ -14,21 +14,16 @@ from ..SOL_Encryption import pp_encrypt
 # ----------------------------------------------------------------------------------------------------------------------
 class SOL_Credentials(BASE_SOL_Credentials):
     def __init__(self, username:str,password:str,password_new:str=""):
-        self._username = username.encode("utf_8")
-        self._password = password.encode("utf_8")
-        self._password_new = password_new.encode("utf_8")
+        self._username = username
+        self._password = password
+        self._password_new = password_new
 
-    def encrypt(self, server_public_key) -> dict:
-        self._encrypted_credentials, self._session_key, self._tag, self._nonce = pp_encrypt(
-            b";".join([self._username, self._password, self._password_new]),
-            server_public_key
-        )
+    def dict(self) -> dict:
         return {
-           "ec":    base64.b64encode(self._encrypted_credentials).decode("utf_8"),
-           "key":   base64.b64encode(self._session_key).decode("utf_8"),
-           "tag":   base64.b64encode(self._tag).decode("utf_8"),
-           "nonce": base64.b64encode(self._nonce).decode("utf_8")
-       }
+            "username":self._username,
+            "password":self._password,
+            "password_new":self._password_new
+        }
 
     def to_json(self) -> str:
        return "!!!__SOL_CREDENTIALS__!!!"

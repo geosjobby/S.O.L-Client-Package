@@ -108,7 +108,7 @@ class SOL_Connector(SOL_Connector_Base):
                 self.PH.wait_for_state("CREDENTIALS_READY")
                 self.PH.package_output_encrypted(
                     state="CREDENTIALS",
-                    package_dict=package.credentials.encrypt(server_public_key),
+                    package_dict=package.credentials.dict(),
                     server_public_key=server_public_key
                 )
 

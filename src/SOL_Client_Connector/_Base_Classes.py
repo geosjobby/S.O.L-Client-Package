@@ -34,16 +34,12 @@ class BASE_Sol_File:
 
 @dataclass
 class BASE_SOL_Credentials:
-    _username:bytes = field(repr=False)
-    _password:bytes = field(repr=False)
-    _password_new:bytes = field(repr=False)
-    _nonce:bytes = field(repr=False)
-    _tag:bytes = field(repr=False)
-    _session_key:bytes = field(repr=False)
-    _encrypted_credentials:bytes = field(repr=False)
+    _username:str = field(repr=False)
+    _password:str = field(repr=False)
+    _password_new:str = field(repr=False)
 
-    def encrypt(self, server_public_key) -> dict:
-        """encrypt credentials"""
+    def dict(self) -> dict:
+        """Forms the package to the server"""
     def to_json(self) -> str:
         """form dictionary to be placed in the eventual command"""
 
