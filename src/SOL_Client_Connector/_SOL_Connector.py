@@ -8,6 +8,9 @@ import base64
 import sys
 import os
 import functools
+import math
+import zlib
+import hashlib
 
 from Crypto.PublicKey.RSA import RsaKey
 
@@ -19,7 +22,8 @@ from ._SOL_Package import (
     pp_import_key,
     pp_decrypt,
     pp_generate_keys,
-    pp_cipher_create
+    pp_cipher_create,
+    pp_cipher_aes_ingest
 )
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -264,6 +268,87 @@ class SOL_Connector(SOL_Connector_Base):
                 # Decode the package
                 package_dict = json.loads(package_data.decode("utf_8"))
                 return package_dict
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # - FILE Packages incoming -
+    # ------------------------------------------------------------------------------------------------------------------
+    def _file_package_in_chunk(self, filepath_1: str, filepath_2: str, function_):
+        file_size_1 = os.path.getsize(filepath_1)
+        buffer_size = self._buffer_size(file_size_1)
+        with open(filepath_1, "rb") as file_1, open(filepath_2, "ab+") as file_2:
+            for chunk in iter(functools.partial(file_1.read, buffer_size), b""):
+                file_2.write(function_(chunk))
+
+    def file_package_in_plain_and_encrypted(self, state: str, server_private_key: RsaKey) -> None:
+        self._wait_for_state(f"{state}_PARAM")
+        self._send_state(f"{state}_PARAM_READY")
+        package_param_dict = json.loads(self.socket.recv(1024).decode("utf_8"))
+        match package_param_dict:
+            # encrypted package
+            case {
+                "sske": str(sske),
+                "nonce": str(nonce),
+                "len": int(package_length),
+                "file_name": str(file_name),
+                "hash_value": str(hash_value)
+            }:
+                # Ingest all the parameters
+                session_key_encrypted = base64.b64decode(sske.encode("utf8"))
+                nonce = base64.b64decode(nonce.encode("utf8"))
+                file_name = base64.b64decode(file_name.encode("utf8")).decode("utf_8")
+                hash_value = base64.b64decode(hash_value.encode("utf8")).decode("utf_8")
+                file_path = f"temp/{file_name}"
+                self._send_state(f"{state}_PARAM_INGESTED")
+
+            case _:
+                # warn: A file should never be unencrypted !
+                raise self.error(5555)
+
+        # Ingest the file
+        total_size = 0
+        with open(f"{file_path}.temp", "ab+") as temp_file:
+            while os.path.getsize(f"{file_path}.temp") < package_length:
+                chunk = self.socket.recv(self._buffer_size(package_length))
+                temp_file.write(chunk)
+                total_size += len(chunk)
+
+        del total_size, chunk
+        self._send_state(f"{state}_PACKAGE_INGESTED")
+
+        # Decrypt the package
+        cipher_aes = pp_cipher_aes_ingest(server_private_key, session_key_encrypted, nonce)
+        self._file_package_in_chunk(
+            filepath_1=f"{file_path}.temp",
+            filepath_2=f"{file_path}.temp2",
+            function_=cipher_aes.decrypt
+        )
+
+        # delete temp file
+        os.remove(f"{file_path}.temp")
+
+        # Decompress file
+        self._file_package_in_chunk(
+            filepath_1=f"{file_path}.temp2",
+            filepath_2=file_path,
+            function_=zlib.decompressobj().decompress
+        )
+
+        # delete temp file
+        os.remove(f"{file_path}.temp2")
+
+        # check hash_sum in chunks
+        hash_sum = hashlib.sha256()
+        with open(file_path, "rb") as file_final_:
+            for chunk in iter(functools.partial(file_final_.read, self._buffer_size(os.path.getsize(file_path))),
+                              b""):
+                hash_sum.update(chunk)
+
+        if hash_sum.hexdigest() != hash_value:
+            os.remove(f"{file_path}")  # delete file if hash wasn't correct
+            raise self.error(5554)
+
+        # send correct state
+        self._send_state(f"{state}_CHECKED")
 
     # ------------------------------------------------------------------------------------------------------------------
     # - MAIN COMMAND -

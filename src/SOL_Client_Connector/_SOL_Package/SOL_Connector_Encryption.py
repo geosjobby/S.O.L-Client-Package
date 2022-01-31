@@ -46,8 +46,13 @@ def pp_decrypt(package_encrypted: bytes, private_key:RsaKey, session_key_encrypt
     return cipher_aes.decrypt_and_verify(package_encrypted, tag)
 
 
-def pp_cipher_ingest():
-    pass
+def pp_cipher_aes_ingest(private_key, session_key_encrypted, nonce):
+    # Set decryptor and variables
+    decryptor = PKCS1_OAEP.new(private_key)
+    session_key = decryptor.decrypt(session_key_encrypted)
+
+    cipher_aes = AES.new(session_key, AES.MODE_EAX, nonce)
+    return cipher_aes
 
 def pp_cipher_create(public_key):
     """Encrypts the message with the given public key"""

@@ -6,5 +6,6 @@ from .SOL_Connector_Encryption import (
     pp_encrypt,
     pp_decrypt,
     pp_generate_keys,
-    pp_cipher_create
+    pp_cipher_create,
+    pp_cipher_aes_ingest
 )
