@@ -8,11 +8,8 @@ import base64
 import sys
 import os
 import functools
-import math
 import zlib
 import hashlib
-
-from Crypto.PublicKey.RSA import RsaKey
 
 # Custom Structure
 from ._Base_Classes import SOL_Connector_Base, _SOL_STOP_Error, SOL_Error, SOL_Package_Base
@@ -46,10 +43,24 @@ class SOL_Connector(SOL_Connector_Base):
         self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self._cleanup()
 
+    # noinspection PyTypeChecker
     def _cleanup(self):
         self._client_public_key = None
         self._client_private_key = None
         self._server_public_key = None
+
+    def _buffer_size(self, object_size:int):
+        match object_size:
+            case int(a) if a < 1048576:  # up to 1mb
+                return 102400  # buffer of 100kb
+            case int(a) if 1048576 < a < 10485760:  # between 1mb and 10mb
+                return 1048576  # buffer of 1mb
+            case int(a) if 10485760 < a < 10485760:  # between 10mb and 100mb
+                return 10485760  # buffer of 10mb
+            case int(a) if a > 10485760:
+                return 10485600  # buffer of 100mb
+            case _:
+                raise self.error(5000)
 
     # ------------------------------------------------------------------------------------------------------------------
     # - Connection Setup and connection waiting-
@@ -158,19 +169,6 @@ class SOL_Connector(SOL_Connector_Base):
     # ------------------------------------------------------------------------------------------------------------------
     # - FILE Packages outgoing -
     # ------------------------------------------------------------------------------------------------------------------
-    def _buffer_size(self, object_size:int):
-        match object_size:
-            case int(a) if a < 1048576:  # up to 1mb
-                return 102400  # buffer of 100kb
-            case int(a) if 1048576 < a < 10485760:  # between 1mb and 10mb
-                return 1048576  # buffer of 1mb
-            case int(a) if 10485760 < a < 10485760:  # between 10mb and 100mb
-                return 10485760  # buffer of 10mb
-            case int(a) if a > 10485760:
-                return 10485600  # buffer of 100mb
-            case _:
-                raise self.error(5000)
-
     def file_package_out_encrypted(self, state: str, file_object: SOL_File) -> None:
         # Encrypt File
         session_key_encrypted, nonce, cipher_aes = pp_cipher_create(self._server_public_key)
@@ -279,7 +277,7 @@ class SOL_Connector(SOL_Connector_Base):
             for chunk in iter(functools.partial(file_1.read, buffer_size), b""):
                 file_2.write(function_(chunk))
 
-    def file_package_in_plain_and_encrypted(self, state: str, server_private_key: RsaKey) -> None:
+    def file_package_in_plain_and_encrypted(self, state: str) -> None:
         self._wait_for_state(f"{state}_PARAM")
         self._send_state(f"{state}_PARAM_READY")
         package_param_dict = json.loads(self.socket.recv(1024).decode("utf_8"))
@@ -305,18 +303,15 @@ class SOL_Connector(SOL_Connector_Base):
                 raise self.error(5555)
 
         # Ingest the file
-        total_size = 0
         with open(f"{file_path}.temp", "ab+") as temp_file:
             while os.path.getsize(f"{file_path}.temp") < package_length:
                 chunk = self.socket.recv(self._buffer_size(package_length))
                 temp_file.write(chunk)
-                total_size += len(chunk)
-
-        del total_size, chunk
+        del chunk
         self._send_state(f"{state}_PACKAGE_INGESTED")
 
         # Decrypt the package
-        cipher_aes = pp_cipher_aes_ingest(server_private_key, session_key_encrypted, nonce)
+        cipher_aes = pp_cipher_aes_ingest(self._client_private_key, session_key_encrypted, nonce)
         self._file_package_in_chunk(
             filepath_1=f"{file_path}.temp",
             filepath_2=f"{file_path}.temp2",
@@ -324,27 +319,30 @@ class SOL_Connector(SOL_Connector_Base):
         )
 
         # delete temp file
-        os.remove(f"{file_path}.temp")
+        # os.remove(f"{file_path}.temp")
 
         # Decompress file
+        decompressor = zlib.decompressobj()
         self._file_package_in_chunk(
             filepath_1=f"{file_path}.temp2",
             filepath_2=file_path,
-            function_=zlib.decompressobj().decompress
+            function_=decompressor.decompress
         )
 
         # delete temp file
-        os.remove(f"{file_path}.temp2")
+        # os.remove(f"{file_path}.temp2")
 
         # check hash_sum in chunks
         hash_sum = hashlib.sha256()
         with open(file_path, "rb") as file_final_:
-            for chunk in iter(functools.partial(file_final_.read, self._buffer_size(os.path.getsize(file_path))),
-                              b""):
+            for chunk in iter(functools.partial(file_final_.read, self._buffer_size(os.path.getsize(file_path))),b""):
                 hash_sum.update(chunk)
 
-        if hash_sum.hexdigest() != hash_value:
-            os.remove(f"{file_path}")  # delete file if hash wasn't correct
+        hash_value_new = hash_sum.hexdigest()
+        print(hash_value_new, hash_value)
+
+        if hash_value_new != hash_value:
+            # os.remove(file_path)  # delete file if hash wasn't correct
             raise self.error(5554)
 
         # send correct state
@@ -439,7 +437,7 @@ class SOL_Connector(SOL_Connector_Base):
                 match self._wait_for_state_multiple(["FILE_PRESENT","CONTINUE"]):
                     case "FILE_PRESENT":
                         self._send_state("FILE_READY")
-                        file_package_dict = self.package_in_plain_and_encrypted(
+                        self.file_package_in_plain_and_encrypted(
                             state="FILE"
                         )
                         continue # go to next iteration as there might be more files incoming

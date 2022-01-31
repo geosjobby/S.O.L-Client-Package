@@ -4,10 +4,7 @@
 # General Packages
 import socket
 from Crypto.PublicKey.RSA import RsaKey
-import os
 from dataclasses import dataclass
-import zlib
-import base64
 
 # Custom Packages
 
@@ -115,6 +112,9 @@ class SOL_Connector_Base:
     address :   str
     port    :   int
     error   =   SOL_Error
+    _client_private_key: RsaKey
+    _client_public_key: RsaKey
+    _server_public_key: RsaKey
 
     def connection_setup(self, address: str, port: int):
         """Insert address and port to connect to the API"""
