@@ -158,7 +158,7 @@ class SOL_Connector(SOL_Connector_Base):
                 f.cleanup()
 
             # 12. Return package to the client, for further processing by client application
-            return package_dict["commands"]
+            return package_dict["reply"]
 
         # if anything goes wrong, it should be excepted here so the entire program doesn't crash
         except STOP_Error as e:
