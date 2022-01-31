@@ -44,9 +44,7 @@ class SOL_File(SOL_File_Base):
 
     #  make object json decode-able, thanks to pure magic
     def to_json(self):
-        return {
-            "file_name_temp":self.filename_temp
-        }
+        return self.filename_temp
 
     # get buffer size
     def _buffer_size(self, object_size:int):
