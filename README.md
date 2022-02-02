@@ -1,4 +1,4 @@
-# - S.O.L Client Connector Package - v0.3.2
+# - S.O.L Client Connector Package - v0.3.3
 
 This is the standardized connector between any client application and the SOL API.
 The primary reason this package was assembled is that there are various client applications which all need the SOL API to work properly.
@@ -11,7 +11,7 @@ They all have to connect to it in a similar way or their connection will be refu
 The client application is meant to handle the different error codes on a case by case basis.
 - Large and small File download and upload, by use of compression. The compression level can be set by the client on upload.
 - Variable compression depth for each file object.
-- 
+- Retrieve error data from the Server
 
 ---
 
