@@ -93,7 +93,7 @@ class SOL_Connector(SOL_Connector_Base):
                     package_dict=package_dict,
                     server_public_key=server_public_key
                 )
-                self.PH.wait_for_state("COMMANDS_LENCHECKED")
+                self.PH.wait_for_state("COMMANDS_LEN_CHECKED")
 
                 # ----------------------------------------------------------------------------------------------------------
                 # Send addition data
