@@ -87,10 +87,6 @@ class PackageHandler_Data(PackageHandler_Base,BASE_PackageHandler_Data):
                 # Decrypt the package
                 # /
 
-                # Decode the package
-                package_dict = json.loads(package_data.decode("utf_8"))
-                return package_dict
-
             # encrypted package
             case {"sske": str(sske),"tag": str(tag),"nonce": str(nonce),"len": int(package_length)}:
                 # Ingest all the parameters
@@ -114,6 +110,10 @@ class PackageHandler_Data(PackageHandler_Base,BASE_PackageHandler_Data):
                     nonce
                 )
 
-                # Decode the package
-                package_dict = json.loads(package_data.decode("utf_8"))
-                return package_dict
+            # if the param package was not setup correctly
+            case _:
+                raise self.error(5401)
+
+        # Decode the package
+        package_dict = json.loads(package_data.decode("utf_8"))
+        return package_dict
