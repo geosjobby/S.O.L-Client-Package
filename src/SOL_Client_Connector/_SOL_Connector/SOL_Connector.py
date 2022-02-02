@@ -165,9 +165,9 @@ class SOL_Connector(SOL_Connector_Base):
                 return package_dict["reply"]
 
             # if anything goes wrong, it should be excepted here so the entire program doesn't crash
-            except STOP_Error as e:
+            except STOP_Error:
                 self.PH.send_state("STOP_DATA")
-                stop_data = self.PH.package_input("STOP_Data",client_private_key)
+                stop_data = self.PH.package_input("STOP_DATA",client_private_key)
                 return [stop_data["data"]]
 
             except socket.timeout:
