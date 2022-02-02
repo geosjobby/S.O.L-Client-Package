@@ -40,7 +40,7 @@ class PackageHandler_Base(BASE_PackageHandler_Base):
     def wait_for_state(self, state: str) -> None:
         data_received = self.connection.recv(1024).decode("utf_8")
         if data_received == "STOP":
-            raise STOP_Error(state,data_received)
+            raise STOP_Error()
         elif data_received != state:
             raise self.error(5401, state, data_received)
         return None
@@ -48,9 +48,9 @@ class PackageHandler_Base(BASE_PackageHandler_Base):
     def wait_for_state_multiple(self, states: list) -> str:
         data_received = self.connection.recv(1024).decode("utf_8")
         if data_received == "STOP":
-            raise STOP_Error(states, data_received)
+            raise STOP_Error()
         elif data_received not in states:
-            raise self.error(5401, data_received)
+            raise self.error(5401, states, data_received)
         return data_received
 
     def send_state(self, state: str) -> None:

@@ -43,6 +43,9 @@ class SOL_Connector(SOL_Connector_Base):
     # - MAIN COMMAND -
     # ------------------------------------------------------------------------------------------------------------------
     def send(self, package:SOL_Package_Base)->list[list]:
+        # --------------------------------------------------------------------------------------------------------------
+        # Prepare the package and some more stuff
+        # --------------------------------------------------------------------------------------------------------------
         try:
             # check the package is the correct format
             if not isinstance(package, SOL_Package_Base):
@@ -58,110 +61,114 @@ class SOL_Connector(SOL_Connector_Base):
             # self.socket.settimeout(600) # 10 minute timeout
             self.socket.settimeout(6000) # 100 minute timeout
 
-            # ----------------------------------------------------------------------------------------------------------
-            # send package so the server
-            # ----------------------------------------------------------------------------------------------------------
-            # 1. Send request for public key
-            self.PH.send_state("SOL_KEY")
-            server_public_key = pp_import_key(
-                self.PH.package_input("KEY", client_private_key)["key"]
-            )
-
-            # 2. Send API KEY
-            self.PH.wait_for_state("API_KEY")
-            self.PH.package_output_encrypted(
-                state="API_KEY",
-                package_dict={"api_key":package.api_key},
-                server_public_key=server_public_key
-            )
-
-            # 3. Wait for API key to be validated
-            self.PH.wait_for_state("API_KEY_OK")
-
-            # 4. Send commands
-            self.PH.wait_for_state("CLIENT_COMMANDS")
-            self.PH.package_output_encrypted(
-                state="CLIENT_COMMANDS",
-                package_dict=package_dict,
-                server_public_key=server_public_key
-            )
-            self.PH.wait_for_state("COMMANDS_LENCHECKED")
-
-            # ----------------------------------------------------------------------------------------------------------
-            # Send addition data
-            # ----------------------------------------------------------------------------------------------------------
-            # 5. Send files if present
-            for f in package.file_list: #type: SOL_File
-                self.PH.send_state("FILE_PRESENT")
-                self.PH.wait_for_state("FILE_READY")
-                self.PH.file_package_output(
-                    state="FILE",
-                    file_object=f,
-                    server_public_key=server_public_key
-                )
-            if package.credentials is not None:
-                self.PH.send_state("CREDENTIALS_PRESENT")
-                self.PH.wait_for_state("CREDENTIALS_READY")
-                self.PH.package_output_encrypted(
-                    state="CREDENTIALS",
-                    package_dict=package.credentials.dict(),
-                    server_public_key=server_public_key
-                )
-
-            # needed to let the API know to continue
-            self.PH.send_state("CONTINUE")
-
-            # ----------------------------------------------------------------------------------------------------------
-            # Wait for parser to finish
-            # ----------------------------------------------------------------------------------------------------------
-            # 7. Wait for the API to respond
-
-            # ----------------------------------------------------------------------------------------------------------
-            # Receive reply package
-            # ----------------------------------------------------------------------------------------------------------
-            # 8. Send Client public key
-            self.PH.wait_for_state("CLIENT_KEY")
-            self.PH.package_output_plain(
-                state="KEY",
-                package_dict={"key": client_public_key.exportKey().decode("utf_8")}
-            )
-
-            # 9. Wait for reply package
-            self.PH.send_state("SOL_REPLY")
-            package_dict = self.PH.package_input(
-                state="SOL_REPLY",
-                client_private_key=client_private_key
-            )
-            # ----------------------------------------------------------------------------------------------------------
-            # Receive addition data
-            # ----------------------------------------------------------------------------------------------------------
-            # 10. Ask for files to be sent
-            while True:
-                match self.PH.wait_for_state_multiple(["FILE_PRESENT","CONTINUE"]):
-                    case "FILE_PRESENT":
-                        self.PH.send_state("FILE_READY")
-                        self.PH.file_package_input(
-                            state="FILE",
-                            client_private_key=client_private_key
-                        )
-                        continue # go to next iteration as there might be more files incoming
-
-                    case "CONTINUE": # No more files were present
-                        break
-
-            # 11. Run a cleanup
-            for f in package.file_list:  # type: SOL_File
-                f.cleanup()
-
-            # 12. Return package to the client, for further processing by client application
-            return package_dict["reply"]
-
-        # if anything goes wrong, it should be excepted here so the entire program doesn't crash
-        except STOP_Error as e:
-            return [[e.args[0],e.args[1]]]
-
-        except socket.timeout:
-            raise SOL_Error(4403,"Connection became unavailable")
-
         except json.JSONDecodeError as e:
             raise SOL_Error(4404, f"Package could not be JSON Decoded,\nwith the following JSON decode error:\n{e}")
+
+        # --------------------------------------------------------------------------------------------------------------
+        # send package so the server
+        # --------------------------------------------------------------------------------------------------------------
+        with self.socket:
+            try:
+                # 1. Send request for public key
+                self.PH.send_state("SOL_KEY")
+                server_public_key = pp_import_key(
+                    self.PH.package_input("KEY", client_private_key)["key"]
+                )
+
+                # 2. Send API KEY
+                self.PH.wait_for_state("API_KEY")
+                self.PH.package_output_encrypted(
+                    state="API_KEY",
+                    package_dict={"api_key":package.api_key},
+                    server_public_key=server_public_key
+                )
+
+                # 3. Wait for API key to be validated
+                self.PH.wait_for_state("API_KEY_OK")
+
+                # 4. Send commands
+                self.PH.wait_for_state("CLIENT_COMMANDS")
+                self.PH.package_output_encrypted(
+                    state="CLIENT_COMMANDS",
+                    package_dict=package_dict,
+                    server_public_key=server_public_key
+                )
+                self.PH.wait_for_state("COMMANDS_LENCHECKED")
+
+                # ----------------------------------------------------------------------------------------------------------
+                # Send addition data
+                # ----------------------------------------------------------------------------------------------------------
+                # 5. Send files if present
+                for f in package.file_list: #type: SOL_File
+                    self.PH.send_state("FILE_PRESENT")
+                    self.PH.wait_for_state("FILE_READY")
+                    self.PH.file_package_output(
+                        state="FILE",
+                        file_object=f,
+                        server_public_key=server_public_key
+                    )
+                if package.credentials is not None:
+                    self.PH.send_state("CREDENTIALS_PRESENT")
+                    self.PH.wait_for_state("CREDENTIALS_READY")
+                    self.PH.package_output_encrypted(
+                        state="CREDENTIALS",
+                        package_dict=package.credentials.dict(),
+                        server_public_key=server_public_key
+                    )
+
+                # needed to let the API know to continue
+                self.PH.send_state("CONTINUE")
+
+                # ----------------------------------------------------------------------------------------------------------
+                # Wait for parser to finish
+                # ----------------------------------------------------------------------------------------------------------
+                # 7. Wait for the API to respond
+
+                # ----------------------------------------------------------------------------------------------------------
+                # Receive reply package
+                # ----------------------------------------------------------------------------------------------------------
+                # 8. Send Client public key
+                self.PH.wait_for_state("CLIENT_KEY")
+                self.PH.package_output_plain(
+                    state="KEY",
+                    package_dict={"key": client_public_key.exportKey().decode("utf_8")}
+                )
+
+                # 9. Wait for reply package
+                self.PH.send_state("SOL_REPLY")
+                package_dict = self.PH.package_input(
+                    state="SOL_REPLY",
+                    client_private_key=client_private_key
+                )
+                # ----------------------------------------------------------------------------------------------------------
+                # Receive addition data
+                # ----------------------------------------------------------------------------------------------------------
+                # 10. Ask for files to be sent
+                while True:
+                    match self.PH.wait_for_state_multiple(["FILE_PRESENT","CONTINUE"]):
+                        case "FILE_PRESENT":
+                            self.PH.send_state("FILE_READY")
+                            self.PH.file_package_input(
+                                state="FILE",
+                                client_private_key=client_private_key
+                            )
+                            continue # go to next iteration as there might be more files incoming
+
+                        case "CONTINUE": # No more files were present
+                            break
+
+                # 11. Run a cleanup
+                for f in package.file_list:  # type: SOL_File
+                    f.cleanup()
+
+                # 12. Return package to the client, for further processing by client application
+                return package_dict["reply"]
+
+            # if anything goes wrong, it should be excepted here so the entire program doesn't crash
+            except STOP_Error as e:
+                self.PH.send_state("STOP_DATA")
+                stop_data = self.PH.package_input("STOP_Data",client_private_key)
+                return [stop_data["data"]]
+
+            except socket.timeout:
+                raise SOL_Error(4403,"Connection became unavailable")
