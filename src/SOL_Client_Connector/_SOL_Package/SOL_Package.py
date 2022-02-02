@@ -2,7 +2,6 @@
 # - Package Imports -
 # ----------------------------------------------------------------------------------------------------------------------
 # General Packages
-import base64
 
 # Custom Packages
 from .._Base_Classes import SOL_Package_Base, SOL_Error, BASE_SOL_Credentials
