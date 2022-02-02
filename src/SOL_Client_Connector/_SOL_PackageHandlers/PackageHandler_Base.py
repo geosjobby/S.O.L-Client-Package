@@ -42,7 +42,7 @@ class PackageHandler_Base(BASE_PackageHandler_Base):
         if data_received == "STOP":
             raise STOP_Error(state,data_received)
         elif data_received != state:
-            raise self.error(5003, state, data_received)
+            raise self.error(5401, state, data_received)
         return None
 
     def wait_for_state_multiple(self, states: list) -> str:
@@ -50,7 +50,7 @@ class PackageHandler_Base(BASE_PackageHandler_Base):
         if data_received == "STOP":
             raise STOP_Error(states, data_received)
         elif data_received not in states:
-            raise self.error(5003, data_received)
+            raise self.error(5401, data_received)
         return data_received
 
     def send_state(self, state: str) -> None:

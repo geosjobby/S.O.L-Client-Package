@@ -46,7 +46,7 @@ class SOL_Connector(SOL_Connector_Base):
         try:
             # check the package is the correct format
             if not isinstance(package, SOL_Package_Base):
-                raise SOL_Error(4101, "Package was not defined as a SOL_Package Object")
+                raise SOL_Error(4402, "Package was not defined as a SOL_Package Object")
 
             # Run the pre-check (this does the compression)
             package.pre_check()
@@ -76,11 +76,7 @@ class SOL_Connector(SOL_Connector_Base):
             )
 
             # 3. Wait for API key to be validated
-            match self.PH.wait_for_state_multiple(["API_KEY_OK"]):
-                case "API_KEY_OK":
-                    pass # Normal way of transaction and too lazy to keep indenting forwards
-                case _:
-                    return [[5000, None]]
+            self.PH.wait_for_state("API_KEY_OK")
 
             # 4. Send commands
             self.PH.wait_for_state("CLIENT_COMMANDS")
@@ -165,7 +161,7 @@ class SOL_Connector(SOL_Connector_Base):
             return [[e.args[0],e.args[1]]]
 
         except socket.timeout:
-            raise SOL_Error(4103,"Connection became unavailable")
+            raise SOL_Error(4403,"Connection became unavailable")
 
         except json.JSONDecodeError as e:
-            raise SOL_Error(4102, f"Package could not be JSON Decoded,\nwith the following JSON decode error:\n{e}")
+            raise SOL_Error(4404, f"Package could not be JSON Decoded,\nwith the following JSON decode error:\n{e}")

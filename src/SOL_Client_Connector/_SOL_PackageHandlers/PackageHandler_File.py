@@ -35,11 +35,9 @@ class PackageHandler_File(PackageHandler_Base,BASE_PackageHandler_File):
         file_size_2 = os.path.getsize(filepath_1)
         buffer_size = self._buffer_size(file_size_1)
         total_chunks = math.ceil(file_size_1 / self._buffer_size(file_size_2))
-        n = 1
         with open(filepath_1, "rb") as file_1, open(filepath_2, "ab+") as file_2:
-            for chunk in iter(functools.partial(file_1.read, buffer_size), b""):
+            for _, chunk in enumerate(iter(functools.partial(file_1.read, buffer_size), b"")):
                 file_2.write(function_(chunk))
-                n += 1
 
     # ------------------------------------------------------------------------------------------------------------------
     # - Form parameters -
@@ -99,12 +97,10 @@ class PackageHandler_File(PackageHandler_Base,BASE_PackageHandler_File):
             os.path.getsize(f"temp/{file_object.filename_transmission}"))
         file_size = os.path.getsize(f"temp/{file_object.filename_transmission}")
         total_chunks = math.ceil(file_size / self._buffer_size(file_size))
-        n = 1
         with open(f"temp/{file_object.filename_transmission}", "rb") as file_final_:
-            for chunk in iter(functools.partial(file_final_.read, buffer_size), b""):
+            for _, chunk in enumerate(iter(functools.partial(file_final_.read, buffer_size), b"")):
                 self.connection.sendall(chunk)
-                n += 1
-        del total_chunks, n, buffer_size, file_size
+        del total_chunks, buffer_size, file_size
 
         # wait for ingestion to finish
         self.wait_for_state(f"{state}_PACKAGE_INGESTED")
@@ -118,17 +114,16 @@ class PackageHandler_File(PackageHandler_Base,BASE_PackageHandler_File):
     def file_package_input(self, state: str, client_private_key: RsaKey) -> None:
         self.wait_for_state(f"{state}_PARAM")
         self.send_state(f"{state}_PARAM_READY")
+
         package_param_dict = json.loads(self.connection.recv(1024).decode("utf_8"))
-        try:
-            session_key_encrypted = base64.b64decode(package_param_dict["sske"].encode("utf8"))
-            nonce = base64.b64decode(package_param_dict["nonce"].encode("utf8"))
-            package_length = int(package_param_dict["len"])
-            file_name = base64.b64decode(package_param_dict["file_name"].encode("utf8")).decode("utf_8")
-            hash_value = base64.b64decode(package_param_dict["hash_value"].encode("utf8")).decode("utf_8")
-            file_path = f"temp/{file_name}"
-            self.send_state(f"{state}_PARAM_INGESTED")
-        except KeyError:
-            raise self.error(5000)
+        session_key_encrypted = base64.b64decode(package_param_dict["sske"].encode("utf8"))
+        nonce = base64.b64decode(package_param_dict["nonce"].encode("utf8"))
+        package_length = int(package_param_dict["len"])
+        file_name = base64.b64decode(package_param_dict["file_name"].encode("utf8")).decode("utf_8")
+        hash_value = base64.b64decode(package_param_dict["hash_value"].encode("utf8")).decode("utf_8")
+        file_path = f"temp/{file_name}"
+
+        self.send_state(f"{state}_PARAM_INGESTED")
 
         # get the buffer size
         buffer_size = self._buffer_size(package_length)
@@ -171,18 +166,15 @@ class PackageHandler_File(PackageHandler_Base,BASE_PackageHandler_File):
 
         file_size = os.path.getsize(f"{file_path}")
         total_chunks = math.ceil(file_size / self._buffer_size(file_size))
-        n = 1
-
         with open(file_path, "rb") as file_final_:
-            for chunk in iter(functools.partial(file_final_.read, buffer_size), b""):
+            for _, chunk in enumerate(iter(functools.partial(file_final_.read, buffer_size), b"")):
                 hash_sum.update(chunk)
-                n += 1
 
-        del total_chunks, n
+        del total_chunks
 
         if hash_sum.hexdigest() != hash_value:
             os.remove(f"{file_path}")  # delete file if hash wasn't correct
-            raise self.error(5554)
+            raise self.error(5402)
 
         # send correct state
         self.send_state(f"{state}_CHECKED")

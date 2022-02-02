@@ -33,7 +33,7 @@ class SOL_Package(SOL_Package_Base):
     def api_key(self, value:str):
         if not isinstance(value, str) \
         or len(value) != self.api_key_length:
-            raise SOL_Error(4402, "API key was incorrectly defined")
+            raise SOL_Error(4405, "API key was incorrectly defined")
         self._api_key = value
     @property
     def commands(self) -> list:
@@ -50,7 +50,7 @@ class SOL_Package(SOL_Package_Base):
     # ------------------------------------------------------------------------------------------------------------------
     def command_add(self,*args:dict) -> None:
         if not all((len(c) == 1 and isinstance(c, dict)) for c in args):
-            raise SOL_Error(4405, "Unable to insert the command(s)")
+            raise SOL_Error(4406, "Unable to insert the command(s)")
         self._commands = self.commands + list(args)
 
         # check for file presence
@@ -67,7 +67,7 @@ class SOL_Package(SOL_Package_Base):
                 case SOL_Credentials():
                     if self.credentials is not None:
                         if id(self.credentials) != id(v):
-                            raise SOL_Error(4000, "Only one unique set of credentials can be stored within the conversation")
+                            raise SOL_Error(4407, "Only one unique set of credentials can be stored within the conversation")
                     else:
                         self._credentials = v
 
@@ -77,9 +77,9 @@ class SOL_Package(SOL_Package_Base):
     def pre_check(self) -> None:
         # Check if we can form package
         if self.api_key is None:
-            raise SOL_Error(4402, "No API Key was setup")
+            raise SOL_Error(4408, "No API Key was setup")
         if len(self.commands) == 0:
-            raise SOL_Error(4402, "No commands were set up")
+            raise SOL_Error(4408, "No commands were set up")
         # start up the compression of any files present
         for fo in self._file_list:  # type: SOL_File
             fo.compress_and_hash()

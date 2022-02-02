@@ -66,17 +66,13 @@ class SOL_File(BASE_Sol_File):
         compressor = zlib.compressobj(self.compression_level)
         buffer_size = self._buffer_size(os.path.getsize(self.filepath))
         total_chunks = math.ceil(os.path.getsize(self.filepath) / buffer_size)
-        n = 0
-
         with open(self.filepath, "rb") as file, open(f"temp/{self.filename_temp}", "ab+") as temp_file:
-            for chunk in iter(functools.partial(
+            for i, chunk in enumerate(iter(functools.partial(
                     file.read,
                     buffer_size
-            ), b""):
-                n += 1
+            ), b"")):
                 hash_sum.update(chunk)
                 temp_file.write(compressor.compress(chunk))
-                print(n, total_chunks)
+                print(i, total_chunks)
             temp_file.write(compressor.flush())
         self.hash_value = hash_sum.hexdigest()
-        print("here")
