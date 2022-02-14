@@ -55,6 +55,7 @@ class SOL_Connector(SOL_Connector_Base):
             package.pre_check()
             package_dict = package.dict()
             client_private_key, client_public_key = pp_generate_keys()
+            client_public_key_exported = client_public_key.exportKey().decode("utf_8")
 
             # Connect to API server and send data
             self.socket.connect((self.address, self.port))
@@ -134,7 +135,7 @@ class SOL_Connector(SOL_Connector_Base):
                 self.PH.wait_for_state("CLIENT_KEY")
                 self.PH.package_output_plain(
                     state="KEY",
-                    package_dict={"key": client_public_key.exportKey().decode("utf_8")}
+                    package_dict={"key": client_public_key_exported}
                 )
 
                 # 9. Wait for reply package
