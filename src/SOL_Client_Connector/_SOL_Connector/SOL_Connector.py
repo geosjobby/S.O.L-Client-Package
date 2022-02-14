@@ -64,6 +64,9 @@ class SOL_Connector(SOL_Connector_Base):
         except json.JSONDecodeError as e:
             raise SOL_Error(4404, f"Package could not be JSON Decoded,\nwith the following JSON decode error:\n{e}")
 
+        except ConnectionRefusedError:
+            raise SOL_Error(5005)
+
         # --------------------------------------------------------------------------------------------------------------
         # send package so the server
         # --------------------------------------------------------------------------------------------------------------
@@ -170,5 +173,5 @@ class SOL_Connector(SOL_Connector_Base):
                 stop_data = self.PH.package_input("STOP_DATA",client_private_key)
                 return [stop_data["data"]]
 
-            except socket.timeout:
+            except (socket.timeout, ConnectionAbortedError, ConnectionResetError):
                 raise SOL_Error(4403,"Connection became unavailable")
