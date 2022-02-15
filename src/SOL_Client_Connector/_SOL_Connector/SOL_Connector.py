@@ -138,7 +138,7 @@ class SOL_Connector(SOL_Connector_Base):
                     match self.PH.wait_for_state_multiple(["CONTINUE", "INFO"]):
                         case "INFO":
                             info_dict = self.PH.package_input("INFO",client_private_key)
-                            print(info_dict)
+                            print(info_dict) # todo, make this a QSignal (PySide)
                         case "CONTINUE":
                             break
 
