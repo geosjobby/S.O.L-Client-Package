@@ -99,6 +99,13 @@ class SOL_Connector(SOL_Connector_Base):
                 )
                 self.PH.wait_for_state("COMMANDS_LEN_CHECKED")
 
+                # 8. Send Client public key
+                self.PH.send_state("CLIENT_KEY")
+                self.PH.package_output_plain(
+                    state="KEY",
+                    package_dict={"key": client_public_key_exported}
+                )
+
                 # ----------------------------------------------------------------------------------------------------------
                 # Send addition data
                 # ----------------------------------------------------------------------------------------------------------
@@ -127,16 +134,18 @@ class SOL_Connector(SOL_Connector_Base):
                 # Wait for parser to finish
                 # ----------------------------------------------------------------------------------------------------------
                 # 7. Wait for the API to respond
+                while True:
+                    match self.PH.wait_for_state_multiple(["CONTINUE", "INFO"]):
+                        case "INFO":
+                            info_dict = self.PH.package_input("INFO",client_private_key)
+                            print(info_dict)
+                        case "CONTINUE":
+                            break
+
 
                 # ----------------------------------------------------------------------------------------------------------
                 # Receive reply package
                 # ----------------------------------------------------------------------------------------------------------
-                # 8. Send Client public key
-                self.PH.wait_for_state("CLIENT_KEY")
-                self.PH.package_output_plain(
-                    state="KEY",
-                    package_dict={"key": client_public_key_exported}
-                )
 
                 # 9. Wait for reply package
                 self.PH.send_state("SOL_REPLY")
