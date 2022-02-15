@@ -22,10 +22,11 @@ class BASE_Sol_File:
     filepath:property =  field(repr=False)
     filename:property =  field(repr=False)
     compression_level:int
+    already_compressed:bool
 
     def cleanup(self)-> None:
         """clean up any remaining temp files"""
-    def to_json(self) -> str:
+    def to_json(self) -> dict:
         """used by the json decoder to place the file_name string at the location of the Sol_File in the command structure"""
     def _buffer_size(self, object_size: int) -> int:
         """used to calculate the buffer size of file compression"""

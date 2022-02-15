@@ -2,6 +2,7 @@
 # - Package Imports -
 # ----------------------------------------------------------------------------------------------------------------------
 # General Packages
+import json
 import os
 import functools
 import string
@@ -18,7 +19,7 @@ from .._Base_Classes import SOL_Error, BASE_Sol_File
 # - SOL File Object -
 # ----------------------------------------------------------------------------------------------------------------------
 class SOL_File(BASE_Sol_File):
-    def __init__(self, filepath:str,compression:int=9):
+    def __init__(self, filepath:str,compression:int=9,already_compressed=False):
         self.hash_value = ""
         file_name_random = ''.join([random.choice((string.ascii_letters + string.digits)) for _ in range(16)])
         self.filename_transmission = f"""{file_name_random}.sol_file"""
@@ -26,6 +27,7 @@ class SOL_File(BASE_Sol_File):
         self.cleanup()  # Delete temp file as a precaution, (theoretically it shouldn't exsist but you never know)
         self.filepath = filepath
         self.compression_level=compression if 0 <= compression < 10 else 9
+        self.already_compressed = already_compressed
 
     @property
     def filepath(self) -> str:
@@ -45,8 +47,12 @@ class SOL_File(BASE_Sol_File):
             os.remove(f"temp/{self.filename_transmission}")
 
     #  make object json decode-able, thanks to pure magic
-    def to_json(self) -> str:
-        return self.filename_temp
+    def to_json(self) -> dict:
+        return {
+            "temp_file_name": self.filename_transmission,
+            "hash_value": self.hash_value,
+            "full_size": os.path.getsize(self.filepath)
+        }
 
     # get buffer size
     def _buffer_size(self, object_size:int) -> int:
