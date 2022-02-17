@@ -2,6 +2,7 @@
 # - Package Imports -
 # ----------------------------------------------------------------------------------------------------------------------
 # General Packages
+import datetime
 import json
 import os
 import functools
@@ -21,7 +22,10 @@ from .._Base_Classes import SOL_Error, BASE_Sol_File
 class SOL_File(BASE_Sol_File):
     def __init__(self, filepath:str,compression:int=9,already_compressed=False):
         self.hash_value = ""
-        file_name_random = ''.join([random.choice((string.ascii_letters + string.digits)) for _ in range(16)])
+        file_name_random = ''.join([
+            *[random.choice((string.ascii_letters + string.digits)) for _ in range(16)],
+            datetime.datetime.now().strftime("_%Y.%m.%d_%H.%M.%S")
+        ])
         self.filename_transmission = f"""{file_name_random}.sol_file"""
         self.filename_temp = f"""{file_name_random}.temp"""
         self.cleanup()  # Delete temp file as a precaution, (theoretically it shouldn't exsist but you never know)
