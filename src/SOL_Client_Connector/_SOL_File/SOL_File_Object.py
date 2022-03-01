@@ -3,6 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # General Packages
 import datetime
+import gc
 import json
 import os
 import functools

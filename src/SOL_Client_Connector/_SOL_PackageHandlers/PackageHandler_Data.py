@@ -69,20 +69,22 @@ class PackageHandler_Data(PackageHandler_Base,BASE_PackageHandler_Data):
     # ------------------------------------------------------------------------------------------------------------------
     def package_input(self, state:str, client_private_key:RsaKey) -> dict:
         self.wait_for_state(f"{state}_PARAM")
-        self.send_state(f"{state}_PARAM_READY")
+        self.send_state(f"READY")
         package_param_dict = json.loads(self.connection.recv(10240).decode("utf_8"))
         match package_param_dict:
 
             # unencrypted package
             case {"sske": None,"tag": None,"nonce": None,"len": int(package_length)}:
                 # Ingest all the parameters
-                self.send_state(f"{state}_PARAM_INGESTED")
+                self.send_state(f"INGESTED")
 
                 # Ingest the package
+                self.wait_for_state(f"{state}_DATA")
                 package_data = b""
+                self.send_state(f"READY")
                 while sys.getsizeof(package_data) < package_length:
                     package_data += self.connection.recv(1048576)
-                self.send_state(f"{state}_PACKAGE_INGESTED")
+                self.send_state(f"INGESTED")
 
                 # Decrypt the package
                 # /
@@ -93,13 +95,15 @@ class PackageHandler_Data(PackageHandler_Base,BASE_PackageHandler_Data):
                 session_key_encrypted = base64.b64decode(sske.encode("utf8"))
                 tag = base64.b64decode(tag.encode("utf8"))
                 nonce = base64.b64decode(nonce.encode("utf8"))
-                self.send_state(f"{state}_PARAM_INGESTED")
+                self.send_state(f"INGESTED")
 
                 # Ingest the package
+                self.wait_for_state(f"{state}_DATA")
                 package_data_encrypted = b""
+                self.send_state(f"READY")
                 while sys.getsizeof(package_data_encrypted) < package_length:
                     package_data_encrypted += self.connection.recv(1048576)
-                self.send_state(f"{state}_PACKAGE_INGESTED")
+                self.send_state(f"INGESTED")
 
                 # Decrypt the package
                 package_data = pp_decrypt(

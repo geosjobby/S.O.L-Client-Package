@@ -38,6 +38,7 @@ class PackageHandler_Base(BASE_PackageHandler_Base):
     # - Connection waiting -
     # ------------------------------------------------------------------------------------------------------------------
     def wait_for_state(self, state: str) -> None:
+        print("wait : " + state)
         data_received = self.connection.recv(1024).decode("utf_8")
         if data_received == "STOP":
             raise STOP_Error()
@@ -54,6 +55,7 @@ class PackageHandler_Base(BASE_PackageHandler_Base):
         return data_received
 
     def send_state(self, state: str) -> None:
+        print("send : " + state)
         self.connection.send(state.encode("utf_8"))
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -69,10 +71,12 @@ class PackageHandler_Base(BASE_PackageHandler_Base):
     def _package_out(self, state:str, package_parameters:bytes, package_data:bytes)->None:
         # Send parameters
         self.send_state(f"{state}_PARAM")
-        self.wait_for_state(f"{state}_PARAM_READY")
+        self.wait_for_state(f"READY")
         self.connection.sendall(package_parameters)
-        self.wait_for_state(f"{state}_PARAM_INGESTED")
+        self.wait_for_state(f"INGESTED")
 
         # Send package
+        self.send_state(f"{state}_DATA")
+        self.wait_for_state(f"READY")
         self.connection.sendall(package_data)
-        self.wait_for_state(f"{state}_PACKAGE_INGESTED")
+        self.wait_for_state(f"INGESTED")

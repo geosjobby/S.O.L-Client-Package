@@ -93,13 +93,12 @@ class PackageHandler_File(PackageHandler_Base,BASE_PackageHandler_File):
         self.wait_for_state(f"{state}_PARAM_INGESTED")
 
         # send the file in chunks
-        buffer_size = self._buffer_size(
-            os.path.getsize(f"temp/{file_object.filename_transmission}"))
+        buffer_size = self._buffer_size(os.path.getsize(f"temp/{file_object.filename_transmission}"))
         file_size = os.path.getsize(f"temp/{file_object.filename_transmission}")
         total_chunks = math.ceil(file_size / self._buffer_size(file_size))
         with open(f"temp/{file_object.filename_transmission}", "rb") as file_final_:
             for _, chunk in enumerate(iter(functools.partial(file_final_.read, buffer_size), b"")):
-                self.connection.sendall(chunk)
+                self.connection.send(chunk)
         del total_chunks, buffer_size, file_size
 
         # wait for ingestion to finish

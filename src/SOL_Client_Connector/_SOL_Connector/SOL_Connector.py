@@ -65,8 +65,8 @@ class SOL_Connector(SOL_Connector_Base):
         except json.JSONDecodeError as e:
             raise SOL_Error(4404, f"Package could not be JSON Decoded,\nwith the following JSON decode error:\n{e}")
 
-        except ConnectionRefusedError:
-            raise SOL_Error(5005)
+        # except ConnectionRefusedError:
+        #     raise SOL_Error(5005)
 
         # --------------------------------------------------------------------------------------------------------------
         # send package so the server
@@ -91,7 +91,7 @@ class SOL_Connector(SOL_Connector_Base):
                 self.PH.wait_for_state("API_KEY_OK")
 
                 # 4. Send commands
-                self.PH.wait_for_state("CLIENT_COMMANDS")
+                self.PH.send_state("CLIENT_COMMANDS")
                 self.PH.package_output_encrypted(
                     state="CLIENT_COMMANDS",
                     package_dict=package_dict,
@@ -101,6 +101,7 @@ class SOL_Connector(SOL_Connector_Base):
 
                 # 8. Send Client public key
                 self.PH.send_state("CLIENT_KEY")
+                self.PH.wait_for_state("READY")
                 self.PH.package_output_plain(
                     state="KEY",
                     package_dict={"key": client_public_key_exported}
