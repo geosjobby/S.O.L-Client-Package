@@ -87,10 +87,10 @@ class PackageHandler_File(PackageHandler_Base,BASE_PackageHandler_File):
         )
 
         # Send parameters
-        self.send_state(f"{state}_PARAM")
-        self.wait_for_state(f"{state}_PARAM_READY")
+        self.send_state(f"PARAM")
+        self.wait_for_state(f"READY")
         self.connection.sendall(package_parameters)
-        self.wait_for_state(f"{state}_PARAM_INGESTED")
+        self.wait_for_state(f"READY")
 
         # send the file in chunks
         buffer_size = self._buffer_size(os.path.getsize(f"temp/{file_object.filename_transmission}"))
@@ -102,17 +102,17 @@ class PackageHandler_File(PackageHandler_Base,BASE_PackageHandler_File):
         del total_chunks, buffer_size, file_size
 
         # wait for ingestion to finish
-        self.wait_for_state(f"{state}_PACKAGE_INGESTED")
+        self.wait_for_state(f"INGESTED")
 
         # wait for file decompression and check to happen
-        self.wait_for_state(f"{state}_CHECKED")
+        self.wait_for_state(f"CHECKED")
 
     # ------------------------------------------------------------------------------------------------------------------
     # - FILE Packages incoming -
     # ------------------------------------------------------------------------------------------------------------------
     def file_package_input(self, state: str, client_private_key: RsaKey) -> None:
-        self.wait_for_state(f"{state}_PARAM")
-        self.send_state(f"{state}_PARAM_READY")
+        self.wait_for_state(f"PARAM")
+        self.send_state(f"READY")
         try:
             package_param_dict = json.loads(self.connection.recv(1024).decode("utf_8"))
             session_key_encrypted = base64.b64decode(package_param_dict["sske"].encode("utf8"))
@@ -124,7 +124,7 @@ class PackageHandler_File(PackageHandler_Base,BASE_PackageHandler_File):
         except KeyError:
             raise self.error(5401)
 
-        self.send_state(f"{state}_PARAM_INGESTED")
+        self.send_state(f"INGESTED")
 
         # get the buffer size
         buffer_size = self._buffer_size(package_length)
@@ -137,7 +137,7 @@ class PackageHandler_File(PackageHandler_Base,BASE_PackageHandler_File):
                 temp_file.write(chunk)
                 total_size += len(chunk)
         del total_size, chunk
-        self.send_state(f"{state}_PACKAGE_INGESTED")
+        self.send_state(f"INGESTED")
 
         # Decrypt the package
         cipher_aes = pp_cipher_aes_decryptor(client_private_key, session_key_encrypted, nonce)
@@ -170,7 +170,7 @@ class PackageHandler_File(PackageHandler_Base,BASE_PackageHandler_File):
         with open(file_path, "rb") as file_final_:
             for _, chunk in enumerate(iter(functools.partial(file_final_.read, buffer_size), b"")):
                 hash_sum.update(chunk)
-
+                #todo QSignal to view progress
         del total_chunks
 
         if hash_sum.hexdigest() != hash_value:
@@ -178,4 +178,4 @@ class PackageHandler_File(PackageHandler_Base,BASE_PackageHandler_File):
             raise self.error(5402)
 
         # send correct state
-        self.send_state(f"{state}_CHECKED")
+        self.send_state(f"CHECKED")

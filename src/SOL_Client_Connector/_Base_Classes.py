@@ -87,6 +87,8 @@ class BASE_PackageHandler_Base:
         """closes the connection"""
     def wait_for_state(self, state: str) -> None:
         """Blocking wait for Client to send a state"""
+    def wait_for_state_undefined(self) -> str:
+        """Wait for an undefined state"""
     def wait_for_state_multiple(self, states: list) -> str:
         """Blocking wait for Client to send a state, and returns the correct state"""
     def send_state(self, state: str) -> None:

@@ -68,7 +68,7 @@ class PackageHandler_Data(PackageHandler_Base,BASE_PackageHandler_Data):
     # - Default Packages incoming -
     # ------------------------------------------------------------------------------------------------------------------
     def package_input(self, state:str, client_private_key:RsaKey) -> dict:
-        self.wait_for_state(f"{state}_PARAM")
+        self.wait_for_state(f"PARAM")
         self.send_state(f"READY")
         package_param_dict = json.loads(self.connection.recv(10240).decode("utf_8"))
         match package_param_dict:
@@ -79,7 +79,7 @@ class PackageHandler_Data(PackageHandler_Base,BASE_PackageHandler_Data):
                 self.send_state(f"INGESTED")
 
                 # Ingest the package
-                self.wait_for_state(f"{state}_DATA")
+                self.wait_for_state(f"DATA")
                 package_data = b""
                 self.send_state(f"READY")
                 while sys.getsizeof(package_data) < package_length:
@@ -98,7 +98,7 @@ class PackageHandler_Data(PackageHandler_Base,BASE_PackageHandler_Data):
                 self.send_state(f"INGESTED")
 
                 # Ingest the package
-                self.wait_for_state(f"{state}_DATA")
+                self.wait_for_state(f"DATA")
                 package_data_encrypted = b""
                 self.send_state(f"READY")
                 while sys.getsizeof(package_data_encrypted) < package_length:
