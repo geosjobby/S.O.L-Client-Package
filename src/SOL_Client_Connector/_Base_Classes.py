@@ -142,5 +142,5 @@ class SOL_Connector_Base:
 
     def connection_setup(self, address: str, port: int):
         """Insert address and port to connect to the API"""
-    async def send(self, package: SOL_Package_Base) -> list[list]:
+    async def send(self, package: SOL_Package_Base) -> dict:
         """Send the actual data to the API by inserting the completed package"""

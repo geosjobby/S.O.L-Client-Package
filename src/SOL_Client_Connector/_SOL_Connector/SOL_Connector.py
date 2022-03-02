@@ -42,7 +42,7 @@ class SOL_Connector(SOL_Connector_Base):
     # ------------------------------------------------------------------------------------------------------------------
     # - MAIN COMMAND -
     # ------------------------------------------------------------------------------------------------------------------
-    def send(self, package:SOL_Package_Base)->list[list]:
+    def send(self, package:SOL_Package_Base)->dict:
         # --------------------------------------------------------------------------------------------------------------
         # Prepare the package and some more stuff
         # --------------------------------------------------------------------------------------------------------------
@@ -59,7 +59,6 @@ class SOL_Connector(SOL_Connector_Base):
 
             # Connect to API server and send data
             self.socket.connect((self.address, self.port))
-            # self.socket.settimeout(600) # 10 minute timeout
             self.socket.settimeout(6000) # 100 minute timeout
 
         except json.JSONDecodeError as e:
@@ -73,7 +72,7 @@ class SOL_Connector(SOL_Connector_Base):
         # --------------------------------------------------------------------------------------------------------------
         with self.socket:
             try:
-                while True:
+                for _ in range(100):
                     match self.PH.wait_for_state_undefined():
                         # ----------------------------------------------------------------------------------------------
                         # data states
@@ -83,10 +82,16 @@ class SOL_Connector(SOL_Connector_Base):
                                 self.PH.package_input("SOL_KEY", client_private_key)["key"]
                             )
 
-                        case "API_KEY" if server_public_key is not None:
+                        case "CONV_DATA" if server_public_key is not None:
                             self.PH.package_output_encrypted(
-                                state="API_KEY",
-                                package_dict={"api_key": package.api_key},
+                                state="CONV_DATA",
+                                package_dict={
+                                    "api_key": package.api_key,
+                                    "files": len(package.file_list),
+                                    "cred": True if package.credentials is not None else False,
+                                    "cmd_len": len(package_dict["commands"]),
+                                    "key": client_public_key_exported
+                                },
                                 server_public_key=server_public_key
                             )
 
@@ -94,13 +99,6 @@ class SOL_Connector(SOL_Connector_Base):
                             self.PH.package_output_encrypted(
                                 state="COMMANDS",
                                 package_dict=package_dict,
-                                server_public_key=server_public_key
-                            )
-
-                        case "CLIENT_KEY" if server_public_key is not None:
-                            self.PH.package_output_encrypted(
-                                state="CLIENT_KEY",
-                                package_dict={"key": client_public_key_exported},
                                 server_public_key=server_public_key
                             )
 
@@ -133,7 +131,6 @@ class SOL_Connector(SOL_Connector_Base):
                         # ----------------------------------------------------------------------------------------------
                         # flow states
                         # ----------------------------------------------------------------------------------------------
-
                         case "INFO":
                             package_dict = self.PH.package_input(
                                 state="INFO",
@@ -152,17 +149,21 @@ class SOL_Connector(SOL_Connector_Base):
                                 state="STOP",
                                 client_private_key=client_private_key
                             )
-                            return stop_data["stop"]
+                            package_dict = stop_data
+                            break
 
                         case a:
                             raise SOL_Error(a)
 
-                # 11. Run a cleanup
-                for f in package.file_list:  # type: SOL_File
-                    f.cleanup()
-
-                # 12. Return package to the client, for further processing by client application
-                return package_dict["reply"]
+                else:
+                    raise SOL_Error("CONNECTION FAILED")
 
             except (socket.timeout, ConnectionAbortedError, ConnectionResetError):
                 raise SOL_Error(4403,"Connection became unavailable")
+
+        # 11. Run a cleanup
+        for f in package.file_list:  # type: SOL_File
+            f.cleanup()
+
+        # 12. Return package to the client, for further processing by client application
+        return package_dict
