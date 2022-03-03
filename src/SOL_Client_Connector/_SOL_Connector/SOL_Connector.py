@@ -109,6 +109,7 @@ class SOL_Connector(SOL_Connector_Base):
                             )
 
                         case "ADDITIONAL":
+                            # send any files
                             for f in package.file_list:  # type: SOL_File
                                 self.PH.send_state("FILE")
                                 self.PH.wait_for_state("FILE")
@@ -117,6 +118,8 @@ class SOL_Connector(SOL_Connector_Base):
                                     file_object=f,
                                     server_public_key=server_public_key
                                 )
+
+                            # send credentials
                             if package.credentials is not None:
                                 self.PH.send_state("CREDENTIALS")
                                 self.PH.wait_for_state("CREDENTIALS")
@@ -125,7 +128,8 @@ class SOL_Connector(SOL_Connector_Base):
                                     package_dict=package.credentials.dict(),
                                     server_public_key=server_public_key
                                 )
-                                # needed to let the API know to continue
+
+                            # needed to let the API know to continue
                             self.PH.send_state("END")
 
                         # ----------------------------------------------------------------------------------------------
@@ -160,6 +164,10 @@ class SOL_Connector(SOL_Connector_Base):
 
             except (socket.timeout, ConnectionAbortedError, ConnectionResetError):
                 raise SOL_Error(4403,"Connection became unavailable")
+
+            except STOP_Error:
+                stop_package = self.PH.package_input("STOP", client_private_key)
+                raise STOP_Error(stop_package)
 
         # 11. Run a cleanup
         for f in package.file_list:  # type: SOL_File
