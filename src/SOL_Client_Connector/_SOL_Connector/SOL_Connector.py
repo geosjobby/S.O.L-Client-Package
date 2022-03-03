@@ -61,6 +61,10 @@ class SOL_Connector(SOL_Connector_Base):
             self.socket.connect((self.address, self.port))
             self.socket.settimeout(6000) # 100 minute timeout
 
+        except ConnectionRefusedError as e:
+            # todo something here to handle the error
+            raise
+
         except json.JSONDecodeError as e:
             raise SOL_Error(4404, f"Package could not be JSON Decoded,\nwith the following JSON decode error:\n{e}")
 
@@ -72,7 +76,7 @@ class SOL_Connector(SOL_Connector_Base):
         # --------------------------------------------------------------------------------------------------------------
         with self.socket:
             try:
-                for _ in range(100):
+                for _ in range(1000):
                     match self.PH.wait_for_state_undefined():
                         # ----------------------------------------------------------------------------------------------
                         # data states
