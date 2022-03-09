@@ -133,9 +133,6 @@ class SOL_Connector(SOL_Connector_Base):
                                     server_public_key=server_public_key
                                 )
 
-                            # needed to let the API know to continue
-                            self.PH.send_state("END")
-
                         # ----------------------------------------------------------------------------------------------
                         # flow states
                         # ----------------------------------------------------------------------------------------------
